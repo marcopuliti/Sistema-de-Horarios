@@ -1,0 +1,45 @@
+{% extends 'horarios/base.html' %}
+{% block title %}Carreras – Sistema de Horarios{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h2 mb-1">Carreras</h1>
+    <p class="text-muted mb-0">Seleccioná una carrera para ver sus horarios</p>
+  </div>
+  <span class="badge bg-primary fs-6">{{ carreras.count }} carreras</span>
+</div>
+
+{% if carreras %}
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for carrera in carreras %}
+      <div class="col">
+        <div class="card h-100 career-card shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <span class="badge bg-secondary">{{ carrera.codigo }}</span>
+              <span class="badge bg-outline-primary border text-primary">{{ carrera.duracion_anos }} años</span>
+            </div>
+            <h5 class="card-title">{{ carrera.nombre }}</h5>
+            <p class="card-text text-muted small">
+              <i class="bi bi-book"></i> {{ carrera.n_materias }} materia{{ carrera.n_materias|pluralize }}
+            </p>
+          </div>
+          <div class="card-footer bg-transparent">
+            <a href="{% url 'carrera_detail' carrera.pk %}" class="btn btn-primary w-100">
+              <i class="bi bi-calendar-week"></i> Ver horarios
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No hay carreras cargadas aún.
+    {% if user.is_authenticated %}
+      <a href="{% url 'carrera_create' %}">Crear una carrera</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

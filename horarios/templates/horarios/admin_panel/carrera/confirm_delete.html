@@ -1,0 +1,31 @@
+{% extends 'horarios/base.html' %}
+{% block title %}Eliminar carrera{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm border-danger" style="max-width: 500px;">
+  <div class="card-header bg-danger text-white">
+    <i class="bi bi-exclamation-triangle"></i> Confirmar eliminación
+  </div>
+  <div class="card-body">
+    <p>¿Estás seguro de que querés eliminar la carrera?</p>
+    <div class="alert alert-danger">
+      <strong>{{ object.nombre }}</strong> ({{ object.codigo }})<br>
+      {% if n_materias %}
+        Esta acción eliminará también <strong>{{ n_materias }} materia{{ n_materias|pluralize }}</strong>
+        y <strong>{{ n_horarios }} horario{{ n_horarios|pluralize }}</strong> asociados.
+      {% endif %}
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">
+          <i class="bi bi-trash"></i> Eliminar
+        </button>
+        <a href="{% url 'carrera_list_panel' %}" class="btn btn-secondary">
+          <i class="bi bi-x"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

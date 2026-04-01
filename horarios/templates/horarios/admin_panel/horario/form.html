@@ -1,0 +1,179 @@
+{% extends 'horarios/base.html' %}
+{% block title %}{% if horario %}Editar{% else %}Cargar{% endif %} horario – {{ materia.nombre }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'panel_dashboard' %}">Panel</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'horario_materia_list' %}">Gestionar Horarios</a></li>
+    <li class="breadcrumb-item active">{{ materia.nombre }}</li>
+  </ol>
+</nav>
+
+<h1 class="h2 mb-1">
+  <i class="bi bi-clock"></i>
+  {% if horario %}Editar{% else %}Cargar{% endif %} horario
+</h1>
+<p class="text-muted mb-4">
+  <strong>{{ materia.nombre }}</strong> —
+  {{ materia.carrera.nombre }} · {{ materia.ano }}° año · {{ materia.get_cuatrimestre_display }}
+</p>
+
+<form method="post">
+  {% csrf_token %}
+
+  <!-- Datos generales del horario -->
+  <div class="card shadow-sm mb-4" style="max-width: 700px;">
+    <div class="card-header fw-semibold bg-light">
+      <i class="bi bi-info-circle"></i> Datos generales
+    </div>
+    <div class="card-body">
+      {% for field in form %}
+        <div class="mb-3">
+          <label for="{{ field.id_for_label }}" class="form-label fw-semibold">
+            {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+          </label>
+          {{ field }}
+          {% if field.errors %}
+            <div class="text-danger small mt-1">{{ field.errors }}</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Bloques de horario (días y horas) -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header fw-semibold bg-light d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-calendar-week"></i> Días y horarios</span>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="btn-agregar-bloque">
+        <i class="bi bi-plus-lg"></i> Agregar bloque
+      </button>
+    </div>
+    <div class="card-body p-0">
+      {{ formset.management_form }}
+
+      {% if formset.non_form_errors %}
+        <div class="alert alert-danger m-3">{{ formset.non_form_errors }}</div>
+      {% endif %}
+
+      <table class="table table-hover align-middle mb-0" id="bloques-table">
+        <thead class="table-light">
+          <tr>
+            <th>Día</th>
+            <th>Hora inicio</th>
+            <th>Hora fin</th>
+            <th>Aula</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="bloques-body">
+          {% for bloque_form in formset %}
+            <tr class="bloque-row {% if bloque_form.DELETE.value %}d-none{% endif %}">
+              {% for hidden in bloque_form.hidden_fields %}{{ hidden }}{% endfor %}
+              <td>
+                {{ bloque_form.dia_semana }}
+                {% if bloque_form.dia_semana.errors %}
+                  <div class="text-danger small">{{ bloque_form.dia_semana.errors }}</div>
+                {% endif %}
+              </td>
+              <td>
+                {{ bloque_form.hora_inicio }}
+                {% if bloque_form.hora_inicio.errors %}
+                  <div class="text-danger small">{{ bloque_form.hora_inicio.errors }}</div>
+                {% endif %}
+              </td>
+              <td>
+                {{ bloque_form.hora_fin }}
+                {% if bloque_form.hora_fin.errors %}
+                  <div class="text-danger small">{{ bloque_form.hora_fin.errors }}</div>
+                {% endif %}
+              </td>
+              <td>
+                {{ bloque_form.aula }}
+                {% if bloque_form.aula.errors %}
+                  <div class="text-danger small">{{ bloque_form.aula.errors }}</div>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                {% if bloque_form.DELETE %}
+                  <label class="btn btn-sm btn-outline-danger delete-btn">
+                    {{ bloque_form.DELETE }}
+                    <i class="bi bi-trash"></i>
+                  </label>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- Plantilla de fila vacía para JS -->
+      <template id="bloque-empty-form">
+        <tr class="bloque-row">
+          <td>
+            <select name="bloques-__prefix__-dia_semana" class="form-select">
+              <option value="lunes">Lunes</option>
+              <option value="martes">Martes</option>
+              <option value="miercoles">Miércoles</option>
+              <option value="jueves">Jueves</option>
+              <option value="viernes">Viernes</option>
+              <option value="sabado">Sábado</option>
+            </select>
+          </td>
+          <td><input type="time" name="bloques-__prefix__-hora_inicio" class="form-control"></td>
+          <td><input type="time" name="bloques-__prefix__-hora_fin" class="form-control"></td>
+          <td><input type="text" name="bloques-__prefix__-aula" class="form-control" placeholder="Aula"></td>
+          <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger remove-new-btn">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        </tr>
+      </template>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-success">
+      <i class="bi bi-check-lg"></i> Guardar
+    </button>
+    <a href="{% url 'horario_materia_list' %}?carrera={{ materia.carrera_id }}&ano={{ materia.ano }}&cuatrimestre={{ materia.cuatrimestre }}"
+       class="btn btn-secondary">
+      <i class="bi bi-x"></i> Cancelar
+    </a>
+  </div>
+</form>
+
+<script>
+(function () {
+  const totalFormsInput = document.querySelector('#id_bloques-TOTAL_FORMS');
+  const body = document.getElementById('bloques-body');
+  const template = document.getElementById('bloque-empty-form');
+
+  // Hide rows marked for deletion and style their delete checkbox
+  document.querySelectorAll('.delete-btn input[type=checkbox]').forEach(chk => {
+    chk.classList.add('d-none');
+    chk.closest('tr').style.opacity = chk.checked ? '0.4' : '';
+    chk.addEventListener('change', function () {
+      this.closest('tr').style.opacity = this.checked ? '0.4' : '';
+    });
+  });
+
+  document.getElementById('btn-agregar-bloque').addEventListener('click', function () {
+    const idx = parseInt(totalFormsInput.value);
+    const clone = template.content.cloneNode(true);
+    clone.querySelectorAll('[name]').forEach(el => {
+      el.name = el.name.replace('__prefix__', idx);
+      if (el.id) el.id = el.id.replace('__prefix__', idx);
+    });
+    clone.querySelector('.remove-new-btn').addEventListener('click', function () {
+      this.closest('tr').remove();
+      totalFormsInput.value = parseInt(totalFormsInput.value) - 1;
+    });
+    body.appendChild(clone);
+    totalFormsInput.value = idx + 1;
+  });
+})();
+</script>
+{% endblock %}

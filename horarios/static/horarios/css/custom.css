@@ -1,0 +1,51 @@
+:root {
+  --bs-primary: #003366;
+  --bs-primary-rgb: 0, 51, 102;
+}
+
+.bg-primary { background-color: var(--bs-primary) !important; }
+.btn-primary { background-color: var(--bs-primary); border-color: var(--bs-primary); }
+.btn-primary:hover { background-color: #002244; border-color: #002244; }
+.btn-outline-primary { color: var(--bs-primary); border-color: var(--bs-primary); }
+.btn-outline-primary:hover { background-color: var(--bs-primary); }
+.text-primary { color: var(--bs-primary) !important; }
+.nav-tabs .nav-link.active { color: var(--bs-primary); border-bottom-color: var(--bs-primary); }
+
+/* Cards de carrera */
+.career-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+.career-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important;
+}
+
+/* Tabla de horarios */
+.schedule-table thead th {
+  background-color: var(--bs-primary);
+  color: white;
+  font-weight: 600;
+}
+
+/* Encabezado de día */
+.day-header {
+  border-left: 4px solid var(--bs-primary);
+  font-size: 1rem;
+}
+
+/* Navbar brand */
+.navbar-brand {
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+}
+
+/* Footer pegado al fondo */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.container.mt-4 {
+  flex: 1;
+}

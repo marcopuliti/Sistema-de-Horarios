@@ -1,0 +1,44 @@
+{% extends 'horarios/base.html' %}
+{% block title %}Eliminar horario – {{ materia.nombre }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'panel_dashboard' %}">Panel</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'horario_materia_list' %}">Gestionar Horarios</a></li>
+    <li class="breadcrumb-item active">Eliminar</li>
+  </ol>
+</nav>
+
+<div class="card shadow-sm border-danger" style="max-width: 500px;">
+  <div class="card-header bg-danger text-white">
+    <i class="bi bi-exclamation-triangle"></i> Confirmar eliminación
+  </div>
+  <div class="card-body">
+    <p>¿Estás seguro de que querés eliminar el horario de esta materia?</p>
+    <div class="alert alert-warning">
+      <strong>{{ materia.nombre }}</strong><br>
+      <span class="text-muted small">
+        {{ materia.carrera.nombre }} · {{ materia.ano }}° año · {{ materia.get_cuatrimestre_display }}
+      </span><br><br>
+      {% if horario.docente %}Docente: {{ horario.docente }}<br>{% endif %}
+      {% if horario.aula %}Aula: {{ horario.aula }}<br>{% endif %}
+      {% if horario.bloques.count %}
+        {{ horario.bloques.count }} bloque{{ horario.bloques.count|pluralize }} de horario
+      {% endif %}
+    </div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">
+          <i class="bi bi-trash"></i> Eliminar
+        </button>
+        <a href="{% url 'horario_materia_list' %}?carrera={{ materia.carrera_id }}&ano={{ materia.ano }}&cuatrimestre={{ materia.cuatrimestre }}"
+           class="btn btn-secondary">
+          <i class="bi bi-x"></i> Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

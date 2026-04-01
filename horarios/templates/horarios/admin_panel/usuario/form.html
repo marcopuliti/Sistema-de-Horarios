@@ -1,0 +1,236 @@
+{% extends 'horarios/base.html' %}
+{% block title %}{{ titulo }} – Panel{% endblock %}
+
+{% block extra_css %}
+<style>
+.materia-item { padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+.materia-item:hover { background: #f0f4ff; }
+.materia-item label { cursor: pointer; width: 100%; margin: 0; }
+.materia-item.hidden { display: none; }
+.carrera-bloque { border: 1px solid #dee2e6; border-radius: 6px; margin-bottom: 10px; overflow: hidden; }
+.carrera-bloque.hidden { display: none; }
+.carrera-header { background: #f8f9fa; padding: 8px 12px; border-bottom: 1px solid #dee2e6;
+                  display: flex; align-items: center; gap: 8px; }
+.carrera-lista { padding: 6px 4px; max-height: 280px; overflow-y: auto; }
+#lista-materias { max-height: 520px; overflow-y: auto; }
+.badge-cnt { font-size: 11px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'panel_dashboard' %}">Panel</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'usuario_list' %}">Usuarios</a></li>
+    <li class="breadcrumb-item active">{{ titulo }}</li>
+  </ol>
+</nav>
+
+<h1 class="h2 mb-4"><i class="bi bi-person"></i> {{ titulo }}</h1>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="row g-4">
+
+    <!-- Columna izquierda: datos del usuario -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header fw-semibold bg-light">
+          <i class="bi bi-person-badge"></i> Datos del usuario
+        </div>
+        <div class="card-body">
+          {% for field in form %}
+            <div class="mb-3">
+              <label for="{{ field.id_for_label }}" class="form-label fw-semibold">
+                {{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}
+              </label>
+              {{ field }}
+              {% if field.help_text %}
+                <div class="form-text">{{ field.help_text }}</div>
+              {% endif %}
+              {% if field.errors %}
+                <div class="text-danger small mt-1">{{ field.errors }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna derecha: asignación de materias -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header fw-semibold bg-light d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-bookmark-check"></i> Materias asignadas</span>
+          <span class="badge bg-primary badge-cnt" id="contador-seleccionadas">0 seleccionadas</span>
+        </div>
+        <div class="card-body">
+
+          <!-- Buscador y filtros -->
+          <div class="row g-2 mb-3">
+            <div class="col-md-5">
+              <input type="text" id="buscar-materia" class="form-control"
+                     placeholder="Buscar materia...">
+            </div>
+            <div class="col-md-3">
+              <select id="filtro-carrera" class="form-select">
+                <option value="">— Todas las carreras —</option>
+                {% for carrera, _ in carreras_materias %}
+                  <option value="carrera-{{ carrera.pk }}">{{ carrera.nombre }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-2">
+              <select id="filtro-cuatrimestre" class="form-select">
+                <option value="">— Cuatrimestre —</option>
+                <option value="1">1° Cuatrimestre</option>
+                <option value="2">2° Cuatrimestre</option>
+                <option value="3">Anual</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <button type="button" class="btn btn-outline-secondary w-100" id="btn-deseleccionar">
+                Limpiar
+              </button>
+            </div>
+          </div>
+
+          <!-- Lista de carreras con sus materias -->
+          <div id="lista-materias">
+            {% for carrera, materias in carreras_materias %}
+              <div class="carrera-bloque" id="carrera-{{ carrera.pk }}">
+                <div class="carrera-header">
+                  <input type="checkbox" class="form-check-input select-all-carrera"
+                         id="sel-carrera-{{ carrera.pk }}"
+                         title="Seleccionar todas las de esta carrera">
+                  <label for="sel-carrera-{{ carrera.pk }}" class="fw-semibold small mb-0" style="cursor:pointer;">
+                    {{ carrera.nombre }}
+                  </label>
+                  <span class="badge bg-secondary ms-auto badge-cnt carrera-cnt-badge">
+                    0 / {{ materias|length }}
+                  </span>
+                </div>
+                <div class="carrera-lista">
+                  {% for materia in materias %}
+                    <div class="materia-item"
+                         data-nombre="{{ materia.nombre|lower }}"
+                         data-carrera="carrera-{{ carrera.pk }}"
+                         data-cuatrimestre="{{ materia.cuatrimestre }}">
+                      <div class="form-check">
+                        <input class="form-check-input materia-chk"
+                               type="checkbox"
+                               name="materias"
+                               value="{{ materia.pk }}"
+                               id="mat-{{ materia.pk }}"
+                               {% if materia.pk in asignadas_ids %}checked{% endif %}>
+                        <label class="form-check-label" for="mat-{{ materia.pk }}">
+                          {{ materia.nombre }}
+                          <span class="text-muted small">
+                            · {{ materia.ano }}° año · {{ materia.get_cuatrimestre_display }}
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Botones -->
+  <div class="d-flex gap-2 mt-4">
+    <button type="submit" class="btn btn-success">
+      <i class="bi bi-check-lg"></i> Guardar
+    </button>
+    <a href="{% url 'usuario_list' %}" class="btn btn-secondary">
+      <i class="bi bi-x"></i> Cancelar
+    </a>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const buscarInput       = document.getElementById('buscar-materia');
+  const filtroCarrera     = document.getElementById('filtro-carrera');
+  const filtroCuatrimestre = document.getElementById('filtro-cuatrimestre');
+  const contador          = document.getElementById('contador-seleccionadas');
+  const btnLimpiar        = document.getElementById('btn-deseleccionar');
+
+  function actualizarContador() {
+    const total = document.querySelectorAll('.materia-chk:checked').length;
+    contador.textContent = total + ' seleccionada' + (total !== 1 ? 's' : '');
+
+    // Actualizar badge y checkbox de cada carrera
+    document.querySelectorAll('.carrera-bloque').forEach(bloque => {
+      const chks     = bloque.querySelectorAll('.materia-chk');
+      const checked  = bloque.querySelectorAll('.materia-chk:checked').length;
+      const badge    = bloque.querySelector('.carrera-cnt-badge');
+      const selAll   = bloque.querySelector('.select-all-carrera');
+      badge.textContent = checked + ' / ' + chks.length;
+      selAll.indeterminate = checked > 0 && checked < chks.length;
+      selAll.checked = checked === chks.length && chks.length > 0;
+    });
+  }
+
+  function filtrar() {
+    const texto        = buscarInput.value.toLowerCase().trim();
+    const carrera      = filtroCarrera.value;
+    const cuatrimestre = filtroCuatrimestre.value;
+
+    document.querySelectorAll('.carrera-bloque').forEach(bloque => {
+      if (carrera && bloque.id !== carrera) {
+        bloque.classList.add('hidden');
+        return;
+      }
+      bloque.classList.remove('hidden');
+
+      let algunaVisible = false;
+      bloque.querySelectorAll('.materia-item').forEach(item => {
+        const coincideTexto  = !texto        || item.dataset.nombre.includes(texto);
+        const coincideCuat   = !cuatrimestre || item.dataset.cuatrimestre === cuatrimestre;
+        const visible = coincideTexto && coincideCuat;
+        item.classList.toggle('hidden', !visible);
+        if (visible) algunaVisible = true;
+      });
+      bloque.classList.toggle('hidden', !algunaVisible);
+    });
+  }
+
+  // "Seleccionar todas" por carrera
+  document.querySelectorAll('.select-all-carrera').forEach(chk => {
+    chk.addEventListener('change', function () {
+      const bloque = this.closest('.carrera-bloque');
+      bloque.querySelectorAll('.materia-item:not(.hidden) .materia-chk').forEach(c => {
+        c.checked = this.checked;
+      });
+      actualizarContador();
+    });
+  });
+
+  // Cambio individual de checkbox de materia
+  document.querySelectorAll('.materia-chk').forEach(chk => {
+    chk.addEventListener('change', actualizarContador);
+  });
+
+  buscarInput.addEventListener('input', filtrar);
+  filtroCarrera.addEventListener('change', filtrar);
+  filtroCuatrimestre.addEventListener('change', filtrar);
+
+  btnLimpiar.addEventListener('click', function () {
+    document.querySelectorAll('.materia-chk:checked').forEach(c => c.checked = false);
+    actualizarContador();
+  });
+
+  // Inicializar contadores
+  actualizarContador();
+})();
+</script>
+{% endblock %}
