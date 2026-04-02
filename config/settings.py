@@ -1,11 +1,28 @@
 from pathlib import Path
 from decouple import config
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-cambia-esto-en-produccion')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+#ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [s.strip() for s in v.split(',')])
+
+# Para despliegue en Render, permitimos los hosts de Render y localhost. En producción, es importante configurar esto correctamente.
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='localhost,127.0.0.1,.onrender.com',
+    cast=lambda v: [s.strip() for s in v.split(',')]
+)
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.onrender.com",
+]
+
+# Para desarrollo, permitimos todos los hosts. En producción, es importante configurar esto correctamente.
+#ALLOWED_HOSTS = ['*']
+#CSRF_TRUSTED_ORIGINS = [
+#    "https://*.ngrok-free.dev"
+#]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -18,6 +35,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -47,14 +66,19 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='sistema_horarios'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
-    }
+    
+    'default': dj_database_url.config(
+        default=config('DATABASE_URL', default='postgres://usuario:password@localhost:5432/tu_basedatos'),
+        conn_max_age=600
+        ) 
+                #{
+        #'ENGINE': 'django.db.backends.postgresql',
+        #'NAME': config('DB_NAME', default='sistema_horarios'),
+        #'USER': config('DB_USER', default='postgres'),
+        #'PASSWORD': config('DB_PASSWORD', default=''),
+        #'HOST': config('DB_HOST', default='localhost'),
+        #'PORT': config('DB_PORT', default='5432'),
+        #}
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -70,6 +94,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = []
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
