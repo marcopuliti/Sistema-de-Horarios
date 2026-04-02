@@ -1,1 +1,2 @@
-Implementar una visualizacion de ocupacion por aula
+Implementar una visualizacion de los planes de estudio de cada carrera completos en donde se visualice cada materia del plan de estudios sectorisado por año y cuatrimeste (incluir materias anuales)
+En la vista principal(publica) ordenar las carreras por orden alfabetico

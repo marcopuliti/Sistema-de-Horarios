@@ -1,6 +1,17 @@
 from django.contrib import admin
-from django.db.models import Count
-from .models import Carrera, Materia, Horario, HorarioBloque, MateriaAsignacion
+from .models import Carrera, Materia, Horario, HorarioBloque, MateriaAsignacion, Aula
+
+@admin.register(Aula)
+class AulaAdmin(admin.ModelAdmin):
+    list_display  = ('__str__', 'ubicacion', 'planta', 'nombre', 'bloques_count')
+    list_filter   = ('ubicacion', 'planta')
+    search_fields = ('nombre',)
+    ordering      = ('ubicacion', 'planta', 'nombre')
+
+    @admin.display(description='Usos')
+    def bloques_count(self, obj):
+        return obj.bloques.count()
+
 
 admin.site.site_header = "Sistema de Horarios – Administración"
 admin.site.site_title = "Horarios Facultad"

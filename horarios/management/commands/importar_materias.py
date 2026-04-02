@@ -97,36 +97,44 @@ class PlanParser(HTMLParser):
         self._es_optativa = False
 
     def handle_starttag(self, tag, attrs):
-        attrs_dict = dict(attrs)
         if tag == 'table':
+            # Solo resetear si estamos dentro de una tabla de año, para manejar
+            # tablas anidadas. No reseteamos _ano_actual porque cada año puede
+            # estar en su propia <table> y el título aparece luego del tag.
             self._en_tabla_ano = False
-            self._ano_actual = None
             self._es_optativa = False
         elif tag == 'tr':
             self._en_fila = True
             self._col = 0
             self._fila_actual = []
-        elif tag == 'td':
+        elif tag in ('td', 'th'):
             self._en_celda = True
             self._texto_celda = ''
 
+    def _procesar_celda(self, texto):
+        """Detecta títulos de año u optativas en el texto de una celda."""
+        texto_lower = texto.lower()
+        if 'materias del' in texto_lower:
+            ano = parsear_ano_desde_titulo(texto_lower)
+            if ano:
+                self._en_tabla_ano = True
+                self._ano_actual = ano
+                self._es_optativa = False
+        elif 'materias optativas de' in texto_lower: #or ('optativa' in texto_lower and self._col <= 1):
+            self._es_optativa = True
+            self._en_tabla_ano = False
+
     def handle_endtag(self, tag):
-        if tag == 'td':
+        if tag in ('td', 'th'):
             self._en_celda = False
             texto = re.sub(r'\s+', ' ', self._texto_celda).strip()
-            self._fila_actual.append(texto)
 
-            # Detectar encabezado de tabla en cualquier columna
-            texto_lower = texto.lower()
-            if 'materias del' in texto_lower and ('a' in texto_lower):
-                ano = parsear_ano_desde_titulo(texto_lower)
-                if ano:
-                    self._en_tabla_ano = True
-                    self._ano_actual = ano
-                    self._es_optativa = False
-            elif 'materias optativas' in texto_lower or ('optativa' in texto_lower and self._col <= 1):
-                self._es_optativa = True
-                self._en_tabla_ano = False
+            # Solo agregar a fila_actual si es <td> (datos de la tabla)
+            if tag == 'td':
+                self._fila_actual.append(texto)
+
+            # Detectar encabezado de año u optativas en <td> y <th>
+            self._procesar_celda(texto)
 
             self._col += 1
 
@@ -154,7 +162,6 @@ class PlanParser(HTMLParser):
 
         elif tag == 'table':
             self._en_tabla_ano = False
-            self._ano_actual = None
 
     def handle_data(self, data):
         if self._en_celda:

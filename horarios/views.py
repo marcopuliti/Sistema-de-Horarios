@@ -5,11 +5,11 @@ from django.http import HttpResponseForbidden
 from django.contrib.auth.models import User
 from django.db.models import Count, Prefetch
 
-from .models import Carrera, Materia, Horario, HorarioBloque, MateriaAsignacion
+from .models import Carrera, Materia, Horario, HorarioBloque, MateriaAsignacion, Aula
 from .forms import (
     CarreraForm, MateriaForm, HorarioForm, HorarioBloqueFormSet,
     MateriaAsignacionForm, HorarioFiltroForm,
-    UsuarioCrearForm, UsuarioEditarForm,
+    UsuarioCrearForm, UsuarioEditarForm, AulaForm,
 )
 from .decorators import (
     admin_required, editor_or_admin_required, manager_or_admin_required,
@@ -22,8 +22,40 @@ DIA_ORDER = {d: i for i, (d, _) in enumerate(HorarioBloque.DIA_CHOICES)}
 # ─── Vistas públicas ──────────────────────────────────────────────────────────
 
 def home(request):
-    carreras = Carrera.objects.annotate(n_materias=Count('materias'))
+    carreras = Carrera.objects.annotate(n_materias=Count('materias')).order_by('nombre')
     return render(request, 'horarios/home.html', {'carreras': carreras})
+
+
+def plan_estudio(request, pk):
+    carrera = get_object_or_404(Carrera, pk=pk)
+    materias = Materia.objects.filter(carrera=carrera).order_by('ano', 'cuatrimestre', 'nombre')
+
+    # Construir estructura: {ano: {1: [...], 2: [...], 3: [...]}}
+    plan = {
+        ano: {1: [], 2: [], 3: []}
+        for ano in range(1, carrera.duracion_anos + 1)
+    }
+    for m in materias:
+        if m.ano in plan:
+            plan[m.ano][m.cuatrimestre].append(m)
+
+    # Convertir a lista ordenada para el template
+    anos = [
+        {
+            'numero':    ano,
+            'primer':    plan[ano][1],
+            'segundo':   plan[ano][2],
+            'anual':     plan[ano][3],
+            'total':     len(plan[ano][1]) + len(plan[ano][2]) + len(plan[ano][3]),
+        }
+        for ano in range(1, carrera.duracion_anos + 1)
+    ]
+
+    return render(request, 'horarios/plan_estudio.html', {
+        'carrera':       carrera,
+        'anos':          anos,
+        'total_materias': materias.count(),
+    })
 
 
 _CAL_PX_PER_HOUR = 80
@@ -35,20 +67,12 @@ _DIA_DISPLAY = dict(HorarioBloque.DIA_CHOICES)
 
 
 def aula_list(request):
-    aulas = (
-        HorarioBloque.objects
-        .exclude(aula='')
-        .values_list('aula', flat=True)
-        .distinct()
-        .order_by('aula')
-    )
+    aulas = Aula.objects.annotate(n_bloques=Count('bloques'))
     return render(request, 'horarios/aula_list.html', {'aulas': aulas})
 
 
-def aula_detail(request):
-    aula = request.GET.get('aula', '').strip()
-    if not aula:
-        return redirect('aula_list')
+def aula_detail(request, pk):
+    aula = get_object_or_404(Aula, pk=pk)
 
     bloques = (
         HorarioBloque.objects
@@ -61,11 +85,11 @@ def aula_detail(request):
     for bloque in bloques:
         h = bloque.horario
         entry = {
-            'materia': h.materia.nombre,
-            'carrera': h.materia.carrera.nombre,
-            'docente': h.docente,
+            'materia':     h.materia.nombre,
+            'carrera':     h.materia.carrera.nombre,
+            'docente':     h.docente,
             'hora_inicio': bloque.hora_inicio,
-            'hora_fin': bloque.hora_fin,
+            'hora_fin':    bloque.hora_fin,
         }
         bloques_por_dia.setdefault(bloque.dia_semana, []).append(entry)
 
@@ -81,16 +105,12 @@ def aula_detail(request):
         min_min = (min_min // 60) * 60
         max_min = ((max_min + 59) // 60) * 60
         total_height = (max_min - min_min) * _CAL_PX_PER_HOUR // 60
-
         time_labels = [
             {'label': f"{h:02d}:00", 'top': (h * 60 - min_min) * _CAL_PX_PER_HOUR // 60}
             for h in range(min_min // 60, max_min // 60 + 1)
         ]
-
-        # Color por carrera para distinguir visualmente
         carreras_unicas = sorted({b['carrera'] for b in all_blocks})
         color_map = {c: _CAL_COLORS[i % len(_CAL_COLORS)] for i, c in enumerate(carreras_unicas)}
-
         for blocks in bloques_por_dia.values():
             for b in blocks:
                 start_m = b['hora_inicio'].hour * 60 + b['hora_inicio'].minute
@@ -100,23 +120,19 @@ def aula_detail(request):
                 b['color']  = color_map[b['carrera']]
     else:
         total_height = 0
-        time_labels = []
+        time_labels  = []
 
     todos_los_dias = [dia for dia, _ in HorarioBloque.DIA_CHOICES]
     horarios_agrupados = [
-        {
-            'dia': dia,
-            'dia_display': _DIA_DISPLAY[dia],
-            'bloques': bloques_por_dia.get(dia, []),
-        }
+        {'dia': dia, 'dia_display': _DIA_DISPLAY[dia], 'bloques': bloques_por_dia.get(dia, [])}
         for dia in todos_los_dias
     ]
 
     return render(request, 'horarios/aula_detail.html', {
-        'aula': aula,
+        'aula':              aula,
         'horarios_agrupados': horarios_agrupados,
-        'time_labels': time_labels,
-        'total_height': total_height,
+        'time_labels':       time_labels,
+        'total_height':      total_height,
     })
 
 
@@ -331,10 +347,11 @@ def horario_editar(request, materia_pk):
         formset = HorarioBloqueFormSet(instance=horario or Horario())
 
     return render(request, 'horarios/admin_panel/horario/form.html', {
-        'materia': materia,
-        'form': form,
-        'formset': formset,
-        'horario': horario,
+        'materia':           materia,
+        'form':              form,
+        'formset':           formset,
+        'horario':           horario,
+        'aulas_disponibles': Aula.objects.all(),
     })
 
 
@@ -604,3 +621,276 @@ def usuario_delete(request, pk):
     return render(request, 'horarios/admin_panel/usuario/confirm_delete.html', {
         'object': usuario, 'n_asignaciones': n_asignaciones,
     })
+
+
+# ─── Reportes (admin + manager) ───────────────────────────────────────────────
+
+def _datos_sin_horario(carrera_id=None):
+    qs = Materia.objects.filter(horario__isnull=True).select_related('carrera')
+    if carrera_id:
+        qs = qs.filter(carrera_id=carrera_id)
+    return qs.order_by('carrera__nombre', 'ano', 'cuatrimestre', 'nombre')
+
+
+def _datos_aulas():
+    from collections import defaultdict
+    bloques = (
+        HorarioBloque.objects
+        .exclude(aula__isnull=True)
+        .select_related('aula', 'horario__materia__carrera')
+        .order_by('aula__ubicacion', 'aula__planta', 'aula__nombre', 'dia_semana', 'hora_inicio')
+    )
+    aulas_dict = defaultdict(lambda: {'aula_str': '', 'horas_semanales': 0.0, 'bloques': []})
+    for b in bloques:
+        key = b.aula_id
+        inicio = b.hora_inicio.hour * 60 + b.hora_inicio.minute
+        fin    = b.hora_fin.hour * 60 + b.hora_fin.minute
+        aulas_dict[key]['aula_str'] = str(b.aula)
+        aulas_dict[key]['horas_semanales'] += (fin - inicio) / 60
+        aulas_dict[key]['bloques'].append({
+            'dia':         b.get_dia_semana_display(),
+            'hora_inicio': b.hora_inicio,
+            'hora_fin':    b.hora_fin,
+            'materia':     b.horario.materia.nombre,
+            'carrera':     b.horario.materia.carrera.nombre,
+            'docente':     b.horario.docente,
+        })
+    return [
+        {'aula': d['aula_str'], 'horas_semanales': d['horas_semanales'], 'bloques': d['bloques']}
+        for d in aulas_dict.values()
+    ]
+
+
+def _datos_conflictos():
+    from collections import defaultdict
+    bloques = (
+        HorarioBloque.objects
+        .exclude(aula__isnull=True)
+        .select_related('aula', 'horario__materia__carrera')
+        .order_by('aula', 'dia_semana', 'hora_inicio')
+    )
+    por_aula_dia = defaultdict(list)
+    for b in bloques:
+        por_aula_dia[(b.aula_id, b.dia_semana)].append(b)
+
+    conflictos = []
+    for (aula_id, dia), blist in por_aula_dia.items():
+        for i, a in enumerate(blist):
+            for b in blist[i + 1:]:
+                if a.hora_inicio < b.hora_fin and a.hora_fin > b.hora_inicio:
+                    conflictos.append({
+                        'aula':     str(a.aula),
+                        'dia':      HorarioBloque.DIA_CHOICES[DIA_ORDER[dia]][1],
+                        'mat_a':    a.horario.materia.nombre,
+                        'car_a':    a.horario.materia.carrera.nombre,
+                        'inicio_a': a.hora_inicio,
+                        'fin_a':    a.hora_fin,
+                        'mat_b':    b.horario.materia.nombre,
+                        'car_b':    b.horario.materia.carrera.nombre,
+                        'inicio_b': b.hora_inicio,
+                        'fin_b':    b.hora_fin,
+                    })
+    return conflictos
+
+
+# ─── Gestión de aulas (solo admin) ───────────────────────────────────────────
+
+@admin_required
+def aula_panel_list(request):
+    aulas = Aula.objects.annotate(n_bloques=Count('bloques'))
+    return render(request, 'horarios/admin_panel/aula/list.html', {'aulas': aulas})
+
+
+@admin_required
+def aula_panel_create(request):
+    form = AulaForm(request.POST or None)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Aula creada correctamente.')
+        return redirect('aula_panel_list')
+    return render(request, 'horarios/admin_panel/aula/form.html', {
+        'form': form, 'titulo': 'Nueva aula',
+    })
+
+
+@admin_required
+def aula_panel_edit(request, pk):
+    aula = get_object_or_404(Aula, pk=pk)
+    form = AulaForm(request.POST or None, instance=aula)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Aula actualizada.')
+        return redirect('aula_panel_list')
+    return render(request, 'horarios/admin_panel/aula/form.html', {
+        'form': form, 'titulo': f'Editar: {aula}', 'object': aula,
+    })
+
+
+@admin_required
+def aula_panel_delete(request, pk):
+    aula = get_object_or_404(Aula, pk=pk)
+    if request.method == 'POST':
+        aula.delete()
+        messages.success(request, 'Aula eliminada.')
+        return redirect('aula_panel_list')
+    return render(request, 'horarios/admin_panel/aula/confirm_delete.html', {
+        'object': aula, 'n_bloques': aula.bloques.count(),
+    })
+
+
+@manager_or_admin_required
+def reporte_index(request):
+    return render(request, 'horarios/reportes/index.html')
+
+
+@manager_or_admin_required
+def reporte_sin_horario(request):
+    carrera_id = request.GET.get('carrera')
+    carreras   = Carrera.objects.all()
+    materias   = _datos_sin_horario(carrera_id)
+    return render(request, 'horarios/reportes/sin_horario.html', {
+        'materias': materias,
+        'carreras': carreras,
+        'carrera_id': carrera_id,
+        'total': materias.count(),
+    })
+
+
+@manager_or_admin_required
+def reporte_sin_horario_excel(request):
+    import openpyxl
+    from django.http import HttpResponse
+    carrera_id = request.GET.get('carrera')
+    materias   = _datos_sin_horario(carrera_id)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Materias sin horario"
+    ws.append(['Carrera', 'Año', 'Cuatrimestre', 'Materia', 'Código'])
+    for m in materias:
+        ws.append([
+            m.carrera.nombre,
+            f"{m.ano}° año",
+            m.get_cuatrimestre_display(),
+            m.nombre,
+            m.codigo or '—',
+        ])
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="materias_sin_horario.xlsx"'
+    wb.save(response)
+    return response
+
+
+@manager_or_admin_required
+def reporte_sin_horario_pdf(request):
+    from django.template.loader import render_to_string
+    from xhtml2pdf import pisa
+    from django.http import HttpResponse
+    carrera_id = request.GET.get('carrera')
+    materias   = _datos_sin_horario(carrera_id)
+    html = render_to_string('horarios/reportes/pdf/sin_horario.html', {'materias': materias})
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="materias_sin_horario.pdf"'
+    pisa.CreatePDF(html, dest=response)
+    return response
+
+
+@manager_or_admin_required
+def reporte_aulas(request):
+    aulas = _datos_aulas()
+    return render(request, 'horarios/reportes/aulas.html', {'aulas': aulas})
+
+
+@manager_or_admin_required
+def reporte_aulas_excel(request):
+    import openpyxl
+    from django.http import HttpResponse
+    aulas = _datos_aulas()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Ocupación de aulas"
+    ws.append(['Aula', 'Horas semanales', 'Día', 'Hora inicio', 'Hora fin', 'Materia', 'Carrera', 'Docente'])
+    for a in aulas:
+        for b in a['bloques']:
+            ws.append([
+                a['aula'],
+                round(a['horas_semanales'], 1),
+                b['dia'],
+                b['hora_inicio'].strftime('%H:%M'),
+                b['hora_fin'].strftime('%H:%M'),
+                b['materia'],
+                b['carrera'],
+                b['docente'],
+            ])
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="ocupacion_aulas.xlsx"'
+    wb.save(response)
+    return response
+
+
+@manager_or_admin_required
+def reporte_aulas_pdf(request):
+    from django.template.loader import render_to_string
+    from xhtml2pdf import pisa
+    from django.http import HttpResponse
+    aulas = _datos_aulas()
+    html  = render_to_string('horarios/reportes/pdf/aulas.html', {'aulas': aulas})
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="ocupacion_aulas.pdf"'
+    pisa.CreatePDF(html, dest=response)
+    return response
+
+
+@manager_or_admin_required
+def reporte_conflictos(request):
+    conflictos = _datos_conflictos()
+    return render(request, 'horarios/reportes/conflictos.html', {
+        'conflictos': conflictos,
+        'total': len(conflictos),
+    })
+
+
+@manager_or_admin_required
+def reporte_conflictos_excel(request):
+    import openpyxl
+    from django.http import HttpResponse
+    conflictos = _datos_conflictos()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Conflictos de horario"
+    ws.append(['Aula', 'Día', 'Materia A', 'Carrera A', 'Inicio A', 'Fin A',
+               'Materia B', 'Carrera B', 'Inicio B', 'Fin B'])
+    for c in conflictos:
+        ws.append([
+            c['aula'], c['dia'],
+            c['mat_a'], c['car_a'], c['inicio_a'].strftime('%H:%M'), c['fin_a'].strftime('%H:%M'),
+            c['mat_b'], c['car_b'], c['inicio_b'].strftime('%H:%M'), c['fin_b'].strftime('%H:%M'),
+        ])
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="conflictos_horario.xlsx"'
+    wb.save(response)
+    return response
+
+
+@manager_or_admin_required
+def reporte_conflictos_pdf(request):
+    from django.template.loader import render_to_string
+    from xhtml2pdf import pisa
+    from django.http import HttpResponse
+    conflictos = _datos_conflictos()
+    html = render_to_string('horarios/reportes/pdf/conflictos.html', {'conflictos': conflictos})
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="conflictos_horario.pdf"'
+    pisa.CreatePDF(html, dest=response)
+    return response

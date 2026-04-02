@@ -1,0 +1,119 @@
+{% extends 'horarios/base.html' %}
+{% block title %}Plan de estudios – {{ carrera.nombre }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.year-card        { border-left: 4px solid #0d6efd; }
+.col-header       { font-weight: 700; font-size: .8rem; text-transform: uppercase;
+                    letter-spacing: .05em; color: #6c757d; padding-bottom: 6px;
+                    border-bottom: 2px solid #dee2e6; margin-bottom: 8px; }
+.materia-row      { padding: 5px 0; border-bottom: 1px solid #f0f0f0; font-size: .9rem; }
+.materia-row:last-child { border-bottom: none; }
+.materia-codigo   { font-size: .75rem; color: #adb5bd; }
+.badge-anual      { font-size: .7rem; }
+.col-anual .col-header { color: #6f42c1; border-color: #6f42c1; }
+.col-primer .col-header { color: #0d6efd; border-color: #0d6efd; }
+.col-segundo .col-header { color: #198754; border-color: #198754; }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'home' %}">Carreras</a></li>
+    <li class="breadcrumb-item">
+      <a href="{% url 'carrera_detail' carrera.pk %}">{{ carrera.nombre }}</a>
+    </li>
+    <li class="breadcrumb-item active">Plan de estudios</li>
+  </ol>
+</nav>
+
+<!-- Encabezado -->
+<div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="h2 mb-1">{{ carrera.nombre }}</h1>
+    <div class="d-flex gap-2 flex-wrap">
+      <span class="badge bg-secondary">{{ carrera.codigo }}</span>
+      <span class="badge bg-outline-primary border text-primary">{{ carrera.duracion_anos }} años</span>
+      <span class="badge bg-light text-dark border">{{ total_materias }} materias</span>
+    </div>
+  </div>
+  <a href="{% url 'carrera_detail' carrera.pk %}" class="btn btn-outline-primary btn-sm">
+    <i class="bi bi-calendar-week"></i> Ver horarios
+  </a>
+</div>
+
+<!-- Leyenda -->
+<div class="d-flex gap-3 mb-4 flex-wrap">
+  <span class="small"><span class="col-primer col-header d-inline-block px-2 py-1 rounded border">1° Cuatrimestre</span></span>
+  <span class="small"><span class="col-segundo col-header d-inline-block px-2 py-1 rounded border">2° Cuatrimestre</span></span>
+  <span class="small"><span class="col-anual col-header d-inline-block px-2 py-1 rounded border">Anual</span></span>
+</div>
+
+<!-- Plan por año -->
+{% for ano in anos %}
+  <div class="card shadow-sm year-card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center bg-light">
+      <span class="fw-bold fs-5">
+        <i class="bi bi-mortarboard"></i> {{ ano.numero }}° Año
+      </span>
+      <span class="badge bg-secondary">{{ ano.total }} materia{{ ano.total|pluralize }}</span>
+    </div>
+    <div class="card-body">
+      <div class="row g-4">
+
+        <!-- 1° Cuatrimestre -->
+        <div class="col-md-4 col-primer">
+          <div class="col-header">1° Cuatrimestre</div>
+          {% if ano.primer %}
+            {% for m in ano.primer %}
+              <div class="materia-row">
+                <div>{{ m.nombre }}</div>
+                {% if m.codigo %}<div class="materia-codigo">{{ m.codigo }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted small fst-italic mb-0">Sin materias</p>
+          {% endif %}
+        </div>
+
+        <!-- 2° Cuatrimestre -->
+        <div class="col-md-4 col-segundo">
+          <div class="col-header">2° Cuatrimestre</div>
+          {% if ano.segundo %}
+            {% for m in ano.segundo %}
+              <div class="materia-row">
+                <div>{{ m.nombre }}</div>
+                {% if m.codigo %}<div class="materia-codigo">{{ m.codigo }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted small fst-italic mb-0">Sin materias</p>
+          {% endif %}
+        </div>
+
+        <!-- Anuales -->
+        <div class="col-md-4 col-anual">
+          <div class="col-header">Anual</div>
+          {% if ano.anual %}
+            {% for m in ano.anual %}
+              <div class="materia-row">
+                <div>
+                  {{ m.nombre }}
+                  <span class="badge bg-purple text-white badge-anual ms-1"
+                        style="background:#6f42c1!important;">anual</span>
+                </div>
+                {% if m.codigo %}<div class="materia-codigo">{{ m.codigo }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted small fst-italic mb-0">Sin materias</p>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+{% endblock %}

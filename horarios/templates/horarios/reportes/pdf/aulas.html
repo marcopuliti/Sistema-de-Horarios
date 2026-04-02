@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #222; }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  p.sub { color: #666; font-size: 10px; margin-top: 0; }
+  h2 { font-size: 13px; margin: 16px 0 4px; background: #343a40; color: #fff; padding: 4px 8px; }
+  .badge { font-size: 10px; color: #555; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  th { background: #6c757d; color: #fff; padding: 4px 8px; text-align: left; font-size: 10px; }
+  td { padding: 3px 8px; border-bottom: 1px solid #dee2e6; font-size: 10px; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+</style>
+</head>
+<body>
+  <h1>Ocupación de aulas</h1>
+  <p class="sub">Sistema de Horarios – FCFMyN UNSL</p>
+  {% for a in aulas %}
+    <h2>{{ a.aula }} <span class="badge">– {{ a.horas_semanales|floatformat:1 }} hs/semana</span></h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Día</th><th>Inicio</th><th>Fin</th><th>Materia</th><th>Carrera</th><th>Docente</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in a.bloques %}
+        <tr>
+          <td>{{ b.dia }}</td>
+          <td>{{ b.hora_inicio|time:"H:i" }}</td>
+          <td>{{ b.hora_fin|time:"H:i" }}</td>
+          <td>{{ b.materia }}</td>
+          <td>{{ b.carrera }}</td>
+          <td>{{ b.docente|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
+</body>
+</html>

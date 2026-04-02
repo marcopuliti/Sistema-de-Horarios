@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #222; }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  p.sub { color: #666; font-size: 10px; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th { background: #343a40; color: #fff; padding: 5px 8px; text-align: left; font-size: 10px; }
+  td { padding: 4px 8px; border-bottom: 1px solid #dee2e6; }
+  tr:nth-child(even) td { background: #f8f9fa; }
+</style>
+</head>
+<body>
+  <h1>Materias sin horario</h1>
+  <p class="sub">Sistema de Horarios – FCFMyN UNSL</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Carrera</th>
+        <th>Año</th>
+        <th>Cuatrimestre</th>
+        <th>Materia</th>
+        <th>Código</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in materias %}
+      <tr>
+        <td>{{ m.carrera.nombre }}</td>
+        <td>{{ m.ano }}°</td>
+        <td>{{ m.get_cuatrimestre_display }}</td>
+        <td>{{ m.nombre }}</td>
+        <td>{{ m.codigo|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

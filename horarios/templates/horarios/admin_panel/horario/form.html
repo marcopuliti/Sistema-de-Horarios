@@ -123,7 +123,14 @@
           </td>
           <td><input type="time" name="bloques-__prefix__-hora_inicio" class="form-control"></td>
           <td><input type="time" name="bloques-__prefix__-hora_fin" class="form-control"></td>
-          <td><input type="text" name="bloques-__prefix__-aula" class="form-control" placeholder="Aula"></td>
+          <td>
+            <select name="bloques-__prefix__-aula" class="form-select">
+              <option value="">— Sin aula —</option>
+              {% for a in aulas_disponibles %}
+                <option value="{{ a.pk }}">{{ a }}</option>
+              {% endfor %}
+            </select>
+          </td>
           <td class="text-end">
             <button type="button" class="btn btn-sm btn-outline-danger remove-new-btn">
               <i class="bi bi-trash"></i>

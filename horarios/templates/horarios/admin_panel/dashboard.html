@@ -100,6 +100,23 @@
         </div>
       </div>
     </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-header"><i class="bi bi-door-open"></i> Aulas</div>
+        <div class="card-body d-flex gap-2">
+          <a href="{% url 'aula_panel_list' %}" class="btn btn-outline-secondary btn-sm">Ver todas</a>
+          <a href="{% url 'aula_panel_create' %}" class="btn btn-secondary btn-sm">+ Nueva</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm">
+        <div class="card-header"><i class="bi bi-bar-chart"></i> Reportes</div>
+        <div class="card-body d-flex gap-2">
+          <a href="{% url 'reporte_index' %}" class="btn btn-outline-info btn-sm">Ver reportes</a>
+        </div>
+      </div>
+    </div>
   </div>
 
 {% elif is_manager_user %}
@@ -155,6 +172,14 @@
         <div class="card-body d-flex gap-2">
           <a href="{% url 'asignacion_list' %}" class="btn btn-outline-primary btn-sm">Ver todas</a>
           <a href="{% url 'asignacion_create' %}" class="btn btn-primary btn-sm">+ Nueva</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-12 mt-2">
+      <div class="card shadow-sm">
+        <div class="card-header"><i class="bi bi-bar-chart"></i> Reportes</div>
+        <div class="card-body d-flex gap-2">
+          <a href="{% url 'reporte_index' %}" class="btn btn-outline-info btn-sm">Ver reportes</a>
         </div>
       </div>
     </div>

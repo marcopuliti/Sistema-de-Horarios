@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #222; }
+  h1 { font-size: 16px; margin-bottom: 4px; }
+  p.sub { color: #666; font-size: 10px; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th { background: #dc3545; color: #fff; padding: 5px 8px; text-align: left; font-size: 10px; }
+  td { padding: 4px 8px; border-bottom: 1px solid #dee2e6; }
+  tr:nth-child(even) td { background: #fff5f5; }
+  .ok { color: #198754; font-weight: bold; }
+</style>
+</head>
+<body>
+  <h1>Conflictos de horario</h1>
+  <p class="sub">Sistema de Horarios – FCFMyN UNSL</p>
+  {% if conflictos %}
+    <table>
+      <thead>
+        <tr>
+          <th>Aula</th><th>Día</th>
+          <th>Materia A</th><th>Horario A</th>
+          <th>Materia B</th><th>Horario B</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in conflictos %}
+        <tr>
+          <td>{{ c.aula }}</td>
+          <td>{{ c.dia }}</td>
+          <td>{{ c.mat_a }}<br><small>{{ c.car_a }}</small></td>
+          <td>{{ c.inicio_a|time:"H:i" }}–{{ c.fin_a|time:"H:i" }}</td>
+          <td>{{ c.mat_b }}<br><small>{{ c.car_b }}</small></td>
+          <td>{{ c.inicio_b|time:"H:i" }}–{{ c.fin_b|time:"H:i" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="ok">No se detectaron conflictos de horario.</p>
+  {% endif %}
+</body>
+</html>

@@ -43,6 +43,42 @@ class Materia(models.Model):
         return f"{self.nombre} ({self.carrera.codigo} – {self.ano}° año, {self.cuatrimestre}° cuat.)"
 
 
+class Aula(models.Model):
+    UBICACION_CHOICES = [
+        ('bloque_i',   'Bloque I'),
+        ('bloque_ii',  'Bloque II'),
+        ('bloque_iii', 'Bloque III'),
+        ('bloque_iv',  'Bloque IV'),
+        ('rectorado',  'Rectorado'),
+        ('barco',      'Barco'),
+        ('chacabuco',  'Chacabuco y Pedernera'),
+        ('normal',     'Escuela Normal Mixta'),
+    ]
+    PLANTA_CHOICES = [
+        ('pb', 'Planta baja'),
+        ('p1', '1° Piso'),
+        ('p2', '2° Piso'),
+        ('p3', '3° Piso'),
+    ]
+
+    ubicacion = models.CharField(max_length=20, choices=UBICACION_CHOICES, verbose_name='Ubicación')
+    planta    = models.CharField(max_length=5,  choices=PLANTA_CHOICES,    verbose_name='Planta', blank=True)
+    nombre    = models.CharField(max_length=100, verbose_name='Número / Nombre')
+
+    class Meta:
+        ordering      = ['ubicacion', 'planta', 'nombre']
+        unique_together = [('ubicacion', 'planta', 'nombre')]
+        verbose_name        = 'Aula'
+        verbose_name_plural = 'Aulas'
+
+    def __str__(self):
+        partes = [self.get_ubicacion_display()]
+        if self.planta:
+            partes.append(self.get_planta_display())
+        partes.append(self.nombre)
+        return ' – '.join(partes)
+
+
 class Horario(models.Model):
     """Un único horario por materia, con múltiples bloques de día/hora."""
 
@@ -75,10 +111,13 @@ class HorarioBloque(models.Model):
     horario = models.ForeignKey(
         Horario, on_delete=models.CASCADE, related_name='bloques', verbose_name='Horario'
     )
-    dia_semana = models.CharField(max_length=10, choices=DIA_CHOICES, verbose_name='Día')
+    dia_semana  = models.CharField(max_length=10, choices=DIA_CHOICES, verbose_name='Día')
     hora_inicio = models.TimeField(verbose_name='Hora inicio')
-    hora_fin = models.TimeField(verbose_name='Hora fin')
-    aula = models.CharField(max_length=100, blank=True, verbose_name='Aula')
+    hora_fin    = models.TimeField(verbose_name='Hora fin')
+    aula        = models.ForeignKey(
+        Aula, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='bloques', verbose_name='Aula'
+    )
 
     class Meta:
         ordering = ['dia_semana', 'hora_inicio']

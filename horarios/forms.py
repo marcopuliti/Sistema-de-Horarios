@@ -1,7 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
 from django.contrib.auth.models import User
-from .models import Carrera, Materia, Horario, HorarioBloque, MateriaAsignacion
+from .models import Carrera, Materia, Horario, HorarioBloque, MateriaAsignacion, Aula
 
 
 BS_INPUT = {'class': 'form-control'}
@@ -42,15 +42,26 @@ class HorarioForm(forms.ModelForm):
         }
 
 
+class AulaForm(forms.ModelForm):
+    class Meta:
+        model = Aula
+        fields = ['ubicacion', 'planta', 'nombre']
+        widgets = {
+            'ubicacion': forms.Select(attrs=BS_SELECT),
+            'planta':    forms.Select(attrs=BS_SELECT),
+            'nombre':    forms.TextInput(attrs=BS_INPUT),
+        }
+
+
 class HorarioBloqueForm(forms.ModelForm):
     class Meta:
         model = HorarioBloque
         fields = ['dia_semana', 'hora_inicio', 'hora_fin', 'aula']
         widgets = {
-            'dia_semana': forms.Select(attrs=BS_SELECT),
+            'dia_semana':  forms.Select(attrs=BS_SELECT),
             'hora_inicio': forms.TimeInput(attrs={**BS_INPUT, 'type': 'time'}),
-            'hora_fin': forms.TimeInput(attrs={**BS_INPUT, 'type': 'time'}),
-            'aula': forms.TextInput(attrs=BS_INPUT),
+            'hora_fin':    forms.TimeInput(attrs={**BS_INPUT, 'type': 'time'}),
+            'aula':        forms.Select(attrs=BS_SELECT),
         }
 
 

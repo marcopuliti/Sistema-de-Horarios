@@ -1,0 +1,66 @@
+{% extends 'horarios/base.html' %}
+{% block title %}Conflictos de horario – Reportes{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'reporte_index' %}">Reportes</a></li>
+    <li class="breadcrumb-item active">Conflictos de horario</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h2 mb-0"><i class="bi bi-exclamation-triangle text-danger"></i> Conflictos de horario</h1>
+  <div class="d-flex gap-2">
+    <a href="{% url 'reporte_conflictos_excel' %}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-file-earmark-excel"></i> Excel
+    </a>
+    <a href="{% url 'reporte_conflictos_pdf' %}" class="btn btn-outline-danger btn-sm">
+      <i class="bi bi-file-earmark-pdf"></i> PDF
+    </a>
+  </div>
+</div>
+
+{% if conflictos %}
+  <div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle"></i>
+    Se detectaron <strong>{{ total }}</strong> conflicto{{ total|pluralize }}.
+  </div>
+
+  <div class="table-responsive shadow-sm">
+    <table class="table table-hover align-middle">
+      <thead class="table-dark">
+        <tr>
+          <th>Aula</th>
+          <th>Día</th>
+          <th>Materia A</th>
+          <th>Carrera A</th>
+          <th>Horario A</th>
+          <th>Materia B</th>
+          <th>Carrera B</th>
+          <th>Horario B</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in conflictos %}
+          <tr class="table-danger">
+            <td><span class="badge bg-secondary">{{ c.aula }}</span></td>
+            <td>{{ c.dia }}</td>
+            <td class="fw-semibold">{{ c.mat_a }}</td>
+            <td class="small text-muted">{{ c.car_a }}</td>
+            <td class="text-nowrap">{{ c.inicio_a|time:"H:i" }} – {{ c.fin_a|time:"H:i" }}</td>
+            <td class="fw-semibold">{{ c.mat_b }}</td>
+            <td class="small text-muted">{{ c.car_b }}</td>
+            <td class="text-nowrap">{{ c.inicio_b|time:"H:i" }} – {{ c.fin_b|time:"H:i" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% else %}
+  <div class="alert alert-success">
+    <i class="bi bi-check-circle"></i> No se detectaron conflictos de horario. Todas las aulas están correctamente asignadas.
+  </div>
+{% endif %}
+{% endblock %}

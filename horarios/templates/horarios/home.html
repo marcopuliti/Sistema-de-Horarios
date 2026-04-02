@@ -25,9 +25,12 @@
               <i class="bi bi-book"></i> {{ carrera.n_materias }} materia{{ carrera.n_materias|pluralize }}
             </p>
           </div>
-          <div class="card-footer bg-transparent">
-            <a href="{% url 'carrera_detail' carrera.pk %}" class="btn btn-primary w-100">
-              <i class="bi bi-calendar-week"></i> Ver horarios
+          <div class="card-footer bg-transparent d-flex gap-2">
+            <a href="{% url 'carrera_detail' carrera.pk %}" class="btn btn-primary flex-fill">
+              <i class="bi bi-calendar-week"></i> Horarios
+            </a>
+            <a href="{% url 'plan_estudio' carrera.pk %}" class="btn btn-outline-secondary flex-fill">
+              <i class="bi bi-journal-text"></i> Plan
             </a>
           </div>
         </div>

@@ -1,0 +1,77 @@
+{% extends 'horarios/base.html' %}
+{% block title %}Reportes – Panel{% endblock %}
+
+{% block content %}
+<h1 class="h2 mb-4"><i class="bi bi-bar-chart"></i> Reportes</h1>
+
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="bi bi-exclamation-circle text-warning"></i> Materias sin horario</h5>
+        <p class="card-text text-muted small">
+          Listado de todas las materias que todavía no tienen horario cargado,
+          filtrable por carrera.
+        </p>
+      </div>
+      <div class="card-footer bg-transparent d-flex gap-2">
+        <a href="{% url 'reporte_sin_horario' %}" class="btn btn-warning btn-sm flex-fill">
+          <i class="bi bi-eye"></i> Ver
+        </a>
+        <a href="{% url 'reporte_sin_horario_excel' %}" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel"></i> Excel
+        </a>
+        <a href="{% url 'reporte_sin_horario_pdf' %}" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-file-earmark-pdf"></i> PDF
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="bi bi-door-open text-primary"></i> Ocupación de aulas</h5>
+        <p class="card-text text-muted small">
+          Horas semanales ocupadas por cada aula y detalle de todas las clases
+          asignadas a cada espacio.
+        </p>
+      </div>
+      <div class="card-footer bg-transparent d-flex gap-2">
+        <a href="{% url 'reporte_aulas' %}" class="btn btn-primary btn-sm flex-fill">
+          <i class="bi bi-eye"></i> Ver
+        </a>
+        <a href="{% url 'reporte_aulas_excel' %}" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel"></i> Excel
+        </a>
+        <a href="{% url 'reporte_aulas_pdf' %}" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-file-earmark-pdf"></i> PDF
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="bi bi-exclamation-triangle text-danger"></i> Conflictos de horario</h5>
+        <p class="card-text text-muted small">
+          Detecta aulas que tienen dos o más materias asignadas en el mismo
+          día y franja horaria.
+        </p>
+      </div>
+      <div class="card-footer bg-transparent d-flex gap-2">
+        <a href="{% url 'reporte_conflictos' %}" class="btn btn-danger btn-sm flex-fill">
+          <i class="bi bi-eye"></i> Ver
+        </a>
+        <a href="{% url 'reporte_conflictos_excel' %}" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel"></i> Excel
+        </a>
+        <a href="{% url 'reporte_conflictos_pdf' %}" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-file-earmark-pdf"></i> PDF
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
