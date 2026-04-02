@@ -34,6 +34,92 @@ _CAL_COLORS = [
 _DIA_DISPLAY = dict(HorarioBloque.DIA_CHOICES)
 
 
+def aula_list(request):
+    aulas = (
+        HorarioBloque.objects
+        .exclude(aula='')
+        .values_list('aula', flat=True)
+        .distinct()
+        .order_by('aula')
+    )
+    return render(request, 'horarios/aula_list.html', {'aulas': aulas})
+
+
+def aula_detail(request):
+    aula = request.GET.get('aula', '').strip()
+    if not aula:
+        return redirect('aula_list')
+
+    bloques = (
+        HorarioBloque.objects
+        .filter(aula=aula)
+        .select_related('horario__materia__carrera')
+        .order_by('dia_semana', 'hora_inicio')
+    )
+
+    bloques_por_dia = {}
+    for bloque in bloques:
+        h = bloque.horario
+        entry = {
+            'materia': h.materia.nombre,
+            'carrera': h.materia.carrera.nombre,
+            'docente': h.docente,
+            'hora_inicio': bloque.hora_inicio,
+            'hora_fin': bloque.hora_fin,
+        }
+        bloques_por_dia.setdefault(bloque.dia_semana, []).append(entry)
+
+    dias_ordenados = sorted(bloques_por_dia.keys(), key=lambda d: DIA_ORDER.get(d, 99))
+    for dia in dias_ordenados:
+        bloques_por_dia[dia].sort(key=lambda b: b['hora_inicio'])
+
+    all_blocks = [b for blocks in bloques_por_dia.values() for b in blocks]
+
+    if all_blocks:
+        min_min = min(b['hora_inicio'].hour * 60 + b['hora_inicio'].minute for b in all_blocks)
+        max_min = max(b['hora_fin'].hour * 60 + b['hora_fin'].minute for b in all_blocks)
+        min_min = (min_min // 60) * 60
+        max_min = ((max_min + 59) // 60) * 60
+        total_height = (max_min - min_min) * _CAL_PX_PER_HOUR // 60
+
+        time_labels = [
+            {'label': f"{h:02d}:00", 'top': (h * 60 - min_min) * _CAL_PX_PER_HOUR // 60}
+            for h in range(min_min // 60, max_min // 60 + 1)
+        ]
+
+        # Color por carrera para distinguir visualmente
+        carreras_unicas = sorted({b['carrera'] for b in all_blocks})
+        color_map = {c: _CAL_COLORS[i % len(_CAL_COLORS)] for i, c in enumerate(carreras_unicas)}
+
+        for blocks in bloques_por_dia.values():
+            for b in blocks:
+                start_m = b['hora_inicio'].hour * 60 + b['hora_inicio'].minute
+                end_m   = b['hora_fin'].hour * 60 + b['hora_fin'].minute
+                b['top']    = (start_m - min_min) * _CAL_PX_PER_HOUR // 60
+                b['height'] = max(28, (end_m - start_m) * _CAL_PX_PER_HOUR // 60)
+                b['color']  = color_map[b['carrera']]
+    else:
+        total_height = 0
+        time_labels = []
+
+    todos_los_dias = [dia for dia, _ in HorarioBloque.DIA_CHOICES]
+    horarios_agrupados = [
+        {
+            'dia': dia,
+            'dia_display': _DIA_DISPLAY[dia],
+            'bloques': bloques_por_dia.get(dia, []),
+        }
+        for dia in todos_los_dias
+    ]
+
+    return render(request, 'horarios/aula_detail.html', {
+        'aula': aula,
+        'horarios_agrupados': horarios_agrupados,
+        'time_labels': time_labels,
+        'total_height': total_height,
+    })
+
+
 def carrera_detail(request, pk):
     carrera = get_object_or_404(Carrera, pk=pk)
     ano = int(request.GET.get('ano', 1))
