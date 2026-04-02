@@ -5,6 +5,8 @@ urlpatterns = [
     # Públicas
     path('', views.home, name='home'),
     path('carrera/<int:pk>/', views.carrera_detail, name='carrera_detail'),
+    path('aulas/', views.aula_list, name='aula_list'),
+    path('aulas/detalle/', views.aula_detail, name='aula_detail'),
 
     # Panel dashboard
     path('panel/', views.panel_dashboard, name='panel_dashboard'),
