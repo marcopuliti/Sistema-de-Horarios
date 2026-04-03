@@ -2,6 +2,7 @@ from pathlib import Path
 from decouple import config
 import dj_database_url
 
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-cambia-esto-en-produccion')
@@ -68,9 +69,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     
     'default': dj_database_url.config(
-        default=config('DATABASE_URL', default='postgres://usuario:password@localhost:5432/tu_basedatos'),
-        conn_max_age=600
-        ) 
+        default=config('DATABASE_URL'), conn_max_age=600) 
                 #{
         #'ENGINE': 'django.db.backends.postgresql',
         #'NAME': config('DB_NAME', default='sistema_horarios'),
@@ -79,8 +78,7 @@ DATABASES = {
         #'HOST': config('DB_HOST', default='localhost'),
         #'PORT': config('DB_PORT', default='5432'),
         #}
-}
-
+    }
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
