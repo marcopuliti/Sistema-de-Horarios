@@ -1,2 +1,3 @@
-Implementar una visualizacion de los planes de estudio de cada carrera completos en donde se visualice cada materia del plan de estudios sectorisado por año y cuatrimeste (incluir materias anuales)
-En la vista principal(publica) ordenar las carreras por orden alfabetico
+1- Buscador que no distinga acentos.
+2- Sistema de notificaciones por email.
+3- 
