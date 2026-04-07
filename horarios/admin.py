@@ -44,12 +44,19 @@ class CarreraAdmin(admin.ModelAdmin):
 
 @admin.register(Materia)
 class MateriaAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'codigo', 'carrera', 'ano', 'cuatrimestre', 'tiene_horario')
+    list_display = ('nombre', 'codigo', 'get_docente', 'carrera', 'ano', 'cuatrimestre', 'tiene_horario')
     list_filter = ('carrera', 'ano', 'cuatrimestre')
-    search_fields = ('nombre', 'codigo', 'carrera__nombre')
+    search_fields = ('nombre', 'codigo', 'carrera__nombre',
+                     'docente__first_name', 'docente__last_name', 'docente__username')
     ordering = ('carrera__nombre', 'ano', 'cuatrimestre', 'nombre')
     autocomplete_fields = ('carrera',)
     inlines = [AsignacionInline]
+
+    @admin.display(description='Docente', ordering='docente__last_name')
+    def get_docente(self, obj):
+        if obj.docente:
+            return obj.docente.get_full_name() or obj.docente.username
+        return '—'
 
     @admin.display(description='Horario', boolean=True)
     def tiene_horario(self, obj):
@@ -58,11 +65,16 @@ class MateriaAdmin(admin.ModelAdmin):
 
 @admin.register(Horario)
 class HorarioAdmin(admin.ModelAdmin):
-    list_display = ('materia', 'get_carrera', 'get_ano', 'docente', 'primer_dia_actividades', 'bloques_count')
+    list_display = ('materia', 'get_carrera', 'get_ano', 'get_docente', 'primer_dia_actividades', 'bloques_count')
     list_filter = ('materia__carrera', 'materia__ano', 'materia__cuatrimestre')
-    search_fields = ('materia__nombre', 'docente', 'aula')
+    search_fields = ('materia__nombre', 'materia__docente')
     date_hierarchy = 'primer_dia_actividades'
     inlines = [HorarioBloqueInline]
+
+    @admin.display(description='Docente', ordering='materia__docente__last_name')
+    def get_docente(self, obj):
+        doc = obj.materia.docente
+        return (doc.get_full_name() or doc.username) if doc else '—'
 
     @admin.display(description='Carrera', ordering='materia__carrera__nombre')
     def get_carrera(self, obj):

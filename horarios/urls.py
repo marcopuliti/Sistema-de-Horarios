@@ -8,6 +8,7 @@ urlpatterns = [
     path('carrera/<int:pk>/plan/', views.plan_estudio, name='plan_estudio'),
     path('aulas/', views.aula_list, name='aula_list'),
     path('aulas/<int:pk>/', views.aula_detail, name='aula_detail'),
+    path('panel/horarios/aula-nueva/', views.aula_crear_inline, name='aula_crear_inline'),
 
     # Panel dashboard
     path('panel/', views.panel_dashboard, name='panel_dashboard'),

@@ -90,7 +90,12 @@
                 {% endif %}
               </td>
               <td>
-                {{ bloque_form.aula }}
+                <div class="input-group">
+                  {{ bloque_form.aula }}
+                  <button type="button" class="btn btn-outline-secondary btn-nueva-aula" title="Nueva aula">
+                    <i class="bi bi-plus-lg"></i>
+                  </button>
+                </div>
                 {% if bloque_form.aula.errors %}
                   <div class="text-danger small">{{ bloque_form.aula.errors }}</div>
                 {% endif %}
@@ -124,12 +129,17 @@
           <td><input type="time" name="bloques-__prefix__-hora_inicio" class="form-control"></td>
           <td><input type="time" name="bloques-__prefix__-hora_fin" class="form-control"></td>
           <td>
-            <select name="bloques-__prefix__-aula" class="form-select">
-              <option value="">— Sin aula —</option>
-              {% for a in aulas_disponibles %}
-                <option value="{{ a.pk }}">{{ a }}</option>
-              {% endfor %}
-            </select>
+            <div class="input-group">
+              <select name="bloques-__prefix__-aula" class="form-select">
+                <option value="">— Sin aula —</option>
+                {% for a in aulas_disponibles %}
+                  <option value="{{ a.pk }}">{{ a }}</option>
+                {% endfor %}
+              </select>
+              <button type="button" class="btn btn-outline-secondary btn-nueva-aula" title="Nueva aula">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+            </div>
           </td>
           <td class="text-end">
             <button type="button" class="btn btn-sm btn-outline-danger remove-new-btn">
@@ -152,13 +162,62 @@
   </div>
 </form>
 
+<!-- Modal: Nueva Aula -->
+<div class="modal fade" id="modalNuevaAula" tabindex="-1" aria-labelledby="modalNuevaAulaLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalNuevaAulaLabel">
+          <i class="bi bi-door-open"></i> Nueva Aula
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="aula-errors" class="alert alert-danger d-none"></div>
+        <div class="mb-3">
+          <label for="modal-aula-ubicacion" class="form-label fw-semibold">
+            Ubicación <span class="text-danger">*</span>
+          </label>
+          <select id="modal-aula-ubicacion" class="form-select">
+            {% for val, lbl in aula_form.fields.ubicacion.choices %}
+              <option value="{{ val }}">{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="modal-aula-planta" class="form-label fw-semibold">Planta</label>
+          <select id="modal-aula-planta" class="form-select">
+            <option value="">— Sin planta —</option>
+            {% for val, lbl in aula_form.fields.planta.choices %}
+              {% if val %}<option value="{{ val }}">{{ lbl }}</option>{% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="modal-aula-nombre" class="form-label fw-semibold">
+            Número / Nombre <span class="text-danger">*</span>
+          </label>
+          <input type="text" id="modal-aula-nombre" class="form-control"
+                 placeholder="Ej: 205, Lab. Informática">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-guardar-aula">
+          <i class="bi bi-check-lg"></i> Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   const totalFormsInput = document.querySelector('#id_bloques-TOTAL_FORMS');
   const body = document.getElementById('bloques-body');
   const template = document.getElementById('bloque-empty-form');
 
-  // Hide rows marked for deletion and style their delete checkbox
+  // Checkbox de eliminación
   document.querySelectorAll('.delete-btn input[type=checkbox]').forEach(chk => {
     chk.classList.add('d-none');
     chk.closest('tr').style.opacity = chk.checked ? '0.4' : '';
@@ -167,6 +226,7 @@
     });
   });
 
+  // Agregar bloque nuevo
   document.getElementById('btn-agregar-bloque').addEventListener('click', function () {
     const idx = parseInt(totalFormsInput.value);
     const clone = template.content.cloneNode(true);
@@ -178,8 +238,67 @@
       this.closest('tr').remove();
       totalFormsInput.value = parseInt(totalFormsInput.value) - 1;
     });
+    // Adjuntar listener de "nueva aula" al botón del nuevo bloque
+    clone.querySelector('.btn-nueva-aula').addEventListener('click', abrirModalNuevaAula);
     body.appendChild(clone);
     totalFormsInput.value = idx + 1;
+  });
+
+  // ── Modal Nueva Aula ────────────────────────────────────────────────────────
+  let modal = null;
+  let selectObjetivo = null;
+
+  function abrirModalNuevaAula() {
+    if (!modal) modal = new bootstrap.Modal(document.getElementById('modalNuevaAula'));
+    selectObjetivo = this.closest('td').querySelector('select');
+    document.getElementById('aula-errors').classList.add('d-none');
+    modal.show();
+  }
+
+  // Asociar listener a botones ya presentes en la tabla
+  document.querySelectorAll('.btn-nueva-aula').forEach(btn => {
+    btn.addEventListener('click', abrirModalNuevaAula);
+  });
+
+  document.getElementById('btn-guardar-aula').addEventListener('click', async function () {
+    const errDiv = document.getElementById('aula-errors');
+    errDiv.classList.add('d-none');
+
+    const data = new FormData();
+    data.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    data.append('ubicacion', document.getElementById('modal-aula-ubicacion').value);
+    data.append('planta',    document.getElementById('modal-aula-planta').value);
+    data.append('nombre',    document.getElementById('modal-aula-nombre').value);
+
+    const resp = await fetch('{% url "aula_crear_inline" %}', { method: 'POST', body: data });
+    const json = await resp.json();
+
+    if (resp.ok) {
+      const option = new Option(json.display, json.pk);
+
+      // Agregar opción a todos los selects de aula visibles
+      document.querySelectorAll('select[name$="-aula"]').forEach(sel => {
+        sel.appendChild(option.cloneNode(true));
+      });
+
+      // Agregar opción al template para futuros bloques
+      const tplSelect = template.content.querySelector('select[name$="-aula"]');
+      if (tplSelect) tplSelect.appendChild(option.cloneNode(true));
+
+      // Seleccionar en el select que disparó el modal
+      if (selectObjetivo) selectObjetivo.value = json.pk;
+
+      // Limpiar campos del modal
+      document.getElementById('modal-aula-nombre').value = '';
+      document.getElementById('modal-aula-ubicacion').selectedIndex = 0;
+      document.getElementById('modal-aula-planta').selectedIndex = 0;
+
+      modal.hide();
+    } else {
+      const msgs = Object.values(json.errors || {}).flat().join(' ');
+      errDiv.textContent = msgs || 'Error al guardar el aula.';
+      errDiv.classList.remove('d-none');
+    }
   });
 })();
 </script>

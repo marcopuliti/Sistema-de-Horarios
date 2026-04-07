@@ -22,23 +22,34 @@ class CarreraForm(forms.ModelForm):
 class MateriaForm(forms.ModelForm):
     class Meta:
         model = Materia
-        fields = ['carrera', 'nombre', 'codigo', 'ano', 'cuatrimestre']
+        fields = ['carrera', 'nombre', 'codigo', 'docente', 'ano', 'cuatrimestre']
         widgets = {
-            'carrera': forms.Select(attrs=BS_SELECT),
-            'nombre': forms.TextInput(attrs=BS_INPUT),
-            'codigo': forms.TextInput(attrs=BS_INPUT),
-            'ano': forms.Select(attrs=BS_SELECT),
+            'carrera':      forms.Select(attrs=BS_SELECT),
+            'nombre':       forms.TextInput(attrs=BS_INPUT),
+            'codigo':       forms.TextInput(attrs=BS_INPUT),
+            'docente':      forms.Select(attrs=BS_SELECT),
+            'ano':          forms.Select(attrs=BS_SELECT),
             'cuatrimestre': forms.Select(attrs=BS_SELECT),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from django.contrib.auth.models import Group
+        try:
+            editor_group = Group.objects.get(name='editor')
+            qs = User.objects.filter(groups=editor_group).order_by('last_name', 'first_name', 'username')
+        except Group.DoesNotExist:
+            qs = User.objects.none()
+        self.fields['docente'].queryset = qs
+        self.fields['docente'].empty_label = '— Sin docente —'
 
 
 class HorarioForm(forms.ModelForm):
     class Meta:
         model = Horario
-        fields = ['docente', 'primer_dia_actividades']
+        fields = ['primer_dia_actividades']
         widgets = {
-            'docente': forms.TextInput(attrs=BS_INPUT),
-            'primer_dia_actividades': forms.DateInput(attrs={**BS_INPUT, 'type': 'date'}),
+            'primer_dia_actividades': forms.DateInput(attrs={**BS_INPUT, 'type': 'date'}, format='%Y-%m-%d'),
         }
 
 
@@ -84,6 +95,20 @@ class MateriaAsignacionForm(forms.ModelForm):
             'usuario': forms.Select(attrs=BS_SELECT),
             'materia': forms.Select(attrs=BS_SELECT),
         }
+
+    def __init__(self, *args, manager=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if manager is not None and not manager.is_superuser:
+            from django.contrib.auth.models import Group
+            try:
+                admin_group = Group.objects.get(name='admin')
+                if not manager.groups.filter(pk=admin_group.pk).exists():
+                    # Es manager: solo muestra sus usuarios
+                    self.fields['usuario'].queryset = User.objects.filter(
+                        perfil_editor__creado_por=manager
+                    ).order_by('username')
+            except Group.DoesNotExist:
+                pass
 
 
 ROL_CHOICES_ADMIN   = [('editor', 'Editor'), ('manager', 'Manager')]

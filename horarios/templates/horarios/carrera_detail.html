@@ -96,6 +96,27 @@
   </a>
 </div>
 
+<!-- Primeros días de actividades -->
+{% if primeros_dias %}
+<div class="card shadow-sm mb-4">
+  <div class="card-header fw-semibold bg-light">
+    <i class="bi bi-calendar-check"></i> Inicio de actividades
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0">
+      <tbody>
+        {% for item in primeros_dias %}
+          <tr>
+            <td class="ps-3 py-2">{{ item.materia }}</td>
+            <td class="pe-3 py-2 text-muted text-end">{{ item.fecha|date:"l j \d\e F \d\e Y" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <!-- Calendario semanal -->
 {% if horarios_agrupados %}
   <div class="cal-scroll shadow-sm">

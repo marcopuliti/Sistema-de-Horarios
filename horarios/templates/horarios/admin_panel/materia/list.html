@@ -38,10 +38,10 @@
         <tr>
           <th>Nombre</th>
           <th>Código</th>
+          <th>Docente</th>
           <th>Carrera</th>
           <th>Año</th>
           <th>Cuatrimestre</th>
-          <th>Horarios</th>
           <th></th>
         </tr>
       </thead>
@@ -50,10 +50,10 @@
           <tr>
             <td class="fw-semibold">{{ m.nombre }}</td>
             <td class="text-muted small">{{ m.codigo|default:"—" }}</td>
+            <td>{{ m.docente.get_full_name|default:m.docente|default:"—" }}</td>
             <td>{{ m.carrera.nombre }}</td>
             <td>{{ m.ano }}°</td>
             <td>{{ m.cuatrimestre }}°</td>
-            <td>{{ m.horarios.count }}</td>
             <td class="text-end">
               <a href="{% url 'materia_edit' m.pk %}" class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-pencil"></i>

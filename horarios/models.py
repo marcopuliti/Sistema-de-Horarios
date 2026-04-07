@@ -29,6 +29,13 @@ class Materia(models.Model):
     )
     nombre = models.CharField(max_length=200, verbose_name='Nombre')
     codigo = models.CharField(max_length=30, blank=True, verbose_name='Código')
+    docente = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='materias_como_docente',
+        verbose_name='Docente',
+    )
     ano = models.PositiveSmallIntegerField(choices=ANO_CHOICES, verbose_name='Año')
     cuatrimestre = models.PositiveSmallIntegerField(
         choices=CUATRIMESTRE_CHOICES, verbose_name='Cuatrimestre'
@@ -85,7 +92,6 @@ class Horario(models.Model):
     materia = models.OneToOneField(
         Materia, on_delete=models.CASCADE, related_name='horario', verbose_name='Materia'
     )
-    docente = models.CharField(max_length=200, verbose_name='Docente')
     primer_dia_actividades = models.DateField(verbose_name='Primer día de actividades')
 
     class Meta:
@@ -126,6 +132,29 @@ class HorarioBloque(models.Model):
 
     def __str__(self):
         return f"{self.get_dia_semana_display()} {self.hora_inicio:%H:%M}–{self.hora_fin:%H:%M}"
+
+
+class PerfilEditor(models.Model):
+    """Registra qué manager creó a cada usuario editor."""
+    usuario    = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='perfil_editor',
+    )
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='editores_creados',
+        verbose_name='Creado por',
+    )
+
+    class Meta:
+        verbose_name = 'Perfil de editor'
+        verbose_name_plural = 'Perfiles de editores'
+
+    def __str__(self):
+        return f"Perfil de {self.usuario.username}"
 
 
 class MateriaAsignacion(models.Model):

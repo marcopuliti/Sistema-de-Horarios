@@ -73,7 +73,7 @@
                 {% endif %}
               </td>
               <td class="text-muted small">
-                {% if h %}{{ h.docente }}{% else %}—{% endif %}
+                {{ materia.docente.get_full_name|default:materia.docente|default:"—" }}
               </td>
               <td class="small">
                 {% if h %}

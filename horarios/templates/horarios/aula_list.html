@@ -15,7 +15,7 @@
     <p class="text-muted mb-0">Seleccioná un aula para ver su calendario semanal de ocupación</p>
   </div>
   {% if aulas %}
-    <span class="badge bg-primary fs-6">{{ aulas|length }} aula{{ aulas|length|pluralize }}</span>
+    <span class="badge bg-primary fs-6">{{ aulas.count }} aula{{ aulas.count|pluralize }}</span>
   {% endif %}
 </div>
 
@@ -28,6 +28,14 @@
             <h5 class="card-title">
               <i class="bi bi-door-open"></i> {{ aula }}
             </h5>
+            <p class="card-text text-muted small">
+              <i class="bi bi-clock"></i>
+              {% if aula.n_bloques %}
+                {{ aula.n_bloques }} bloque{{ aula.n_bloques|pluralize }} asignado{{ aula.n_bloques|pluralize }}
+              {% else %}
+                Sin bloques asignados
+              {% endif %}
+            </p>
           </div>
           <div class="card-footer bg-transparent">
             <a href="{% url 'aula_detail' aula.pk %}" class="btn btn-primary w-100">
@@ -40,7 +48,7 @@
   </div>
 {% else %}
   <div class="alert alert-info">
-    <i class="bi bi-info-circle"></i> No hay aulas cargadas en ningún horario aún.
+    <i class="bi bi-info-circle"></i> No hay aulas registradas aún.
   </div>
 {% endif %}
 {% endblock %}

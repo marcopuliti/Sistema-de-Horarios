@@ -108,15 +108,12 @@
               {% for b in col.bloques %}
                 <div class="cal-block {{ b.color }}"
                      style="top:{{ b.top }}px; height:{{ b.height }}px;"
-                     title="{{ b.materia }} ({{ b.carrera }}){% if b.docente %} — {{ b.docente }}{% endif %}">
+                     title="{{ b.materia }}{% if b.docente %} — {{ b.docente }}{% endif %}">
                   <div class="cal-block-name">{{ b.materia }}</div>
                   <div class="cal-block-meta">
                     {{ b.hora_inicio|time:"H:i" }}–{{ b.hora_fin|time:"H:i" }}
                   </div>
-                  {% if b.height > 46 %}
-                    <div class="cal-block-meta">{{ b.carrera }}</div>
-                  {% endif %}
-                  {% if b.height > 68 and b.docente %}
+                  {% if b.height > 46 and b.docente %}
                     <div class="cal-block-meta">{{ b.docente }}</div>
                   {% endif %}
                 </div>

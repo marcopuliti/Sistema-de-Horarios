@@ -1,15 +1,14 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.contrib import messages
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib.auth.models import User
 from django.db.models import Count, Prefetch
-
-from .models import Carrera, Materia, Horario, HorarioBloque, MateriaAsignacion, Aula
+from .models import Carrera, Materia, Horario, HorarioBloque, MateriaAsignacion, Aula, PerfilEditor
 from .forms import (
-    CarreraForm, MateriaForm, HorarioForm, HorarioBloqueFormSet,
+    CarreraForm, MateriaForm, HorarioForm, HorarioBloqueFormSet, AulaForm,
     MateriaAsignacionForm, HorarioFiltroForm,
-    UsuarioCrearForm, UsuarioEditarForm, AulaForm,
+    UsuarioCrearForm, UsuarioEditarForm,
 )
 from .decorators import (
     admin_required, editor_or_admin_required, manager_or_admin_required,
@@ -17,6 +16,13 @@ from .decorators import (
 )
 
 DIA_ORDER = {d: i for i, (d, _) in enumerate(HorarioBloque.DIA_CHOICES)}
+
+
+def _nombre_docente(user):
+    """Devuelve nombre completo o username del usuario, o '' si es None."""
+    if user is None:
+        return ''
+    return user.get_full_name() or user.username
 
 
 # ─── Vistas públicas ──────────────────────────────────────────────────────────
@@ -77,21 +83,38 @@ def aula_detail(request, pk):
     bloques = (
         HorarioBloque.objects
         .filter(aula=aula)
-        .select_related('horario__materia__carrera')
+        .select_related('horario__materia__docente')
         .order_by('dia_semana', 'hora_inicio')
     )
 
-    bloques_por_dia = {}
+    # Agrupar bloques por (dia, inicio, fin, nombre de materia) para fusionar
+    # materias homónimas de distintas carreras en una sola entrada visual.
+    merged = {}
     for bloque in bloques:
         h = bloque.horario
-        entry = {
-            'materia':     h.materia.nombre,
-            'carrera':     h.materia.carrera.nombre,
-            'docente':     h.docente,
-            'hora_inicio': bloque.hora_inicio,
-            'hora_fin':    bloque.hora_fin,
-        }
-        bloques_por_dia.setdefault(bloque.dia_semana, []).append(entry)
+        key = (bloque.dia_semana, bloque.hora_inicio, bloque.hora_fin, h.materia.nombre)
+        if key not in merged:
+            merged[key] = {
+                'materia':     h.materia.nombre,
+                'hora_inicio': bloque.hora_inicio,
+                'hora_fin':    bloque.hora_fin,
+                '_docentes':   {h.materia.docente_id},
+                '_docente_obj': h.materia.docente,
+            }
+        else:
+            merged[key]['_docentes'].add(h.materia.docente_id)
+
+    bloques_por_dia = {}
+    for (dia, *_), entry in merged.items():
+        # Mostrar docente solo si todos los fusionados tienen el mismo (por ID)
+        docentes = entry['_docentes'] - {None}
+        if len(docentes) == 1:
+            entry['docente'] = _nombre_docente(entry['_docente_obj'])
+        else:
+            entry['docente'] = ''
+        del entry['_docentes']
+        del entry['_docente_obj']
+        bloques_por_dia.setdefault(dia, []).append(entry)
 
     dias_ordenados = sorted(bloques_por_dia.keys(), key=lambda d: DIA_ORDER.get(d, 99))
     for dia in dias_ordenados:
@@ -109,15 +132,15 @@ def aula_detail(request, pk):
             {'label': f"{h:02d}:00", 'top': (h * 60 - min_min) * _CAL_PX_PER_HOUR // 60}
             for h in range(min_min // 60, max_min // 60 + 1)
         ]
-        carreras_unicas = sorted({b['carrera'] for b in all_blocks})
-        color_map = {c: _CAL_COLORS[i % len(_CAL_COLORS)] for i, c in enumerate(carreras_unicas)}
+        materias_unicas = sorted({b['materia'] for b in all_blocks})
+        color_map = {m: _CAL_COLORS[i % len(_CAL_COLORS)] for i, m in enumerate(materias_unicas)}
         for blocks in bloques_por_dia.values():
             for b in blocks:
                 start_m = b['hora_inicio'].hour * 60 + b['hora_inicio'].minute
                 end_m   = b['hora_fin'].hour * 60 + b['hora_fin'].minute
                 b['top']    = (start_m - min_min) * _CAL_PX_PER_HOUR // 60
                 b['height'] = max(28, (end_m - start_m) * _CAL_PX_PER_HOUR // 60)
-                b['color']  = color_map[b['carrera']]
+                b['color']  = color_map[b['materia']]
     else:
         total_height = 0
         time_labels  = []
@@ -134,6 +157,18 @@ def aula_detail(request, pk):
         'time_labels':       time_labels,
         'total_height':      total_height,
     })
+
+
+@editor_or_admin_required
+def aula_crear_inline(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+    form = AulaForm(request.POST)
+    if form.is_valid():
+        aula = form.save()
+        return JsonResponse({'pk': aula.pk, 'display': str(aula)})
+    errors = {field: list(errs) for field, errs in form.errors.items()}
+    return JsonResponse({'errors': errors}, status=400)
 
 
 def carrera_detail(request, pk):
@@ -153,7 +188,7 @@ def carrera_detail(request, pk):
             materia__ano=ano,
             materia__cuatrimestre__in=[cuatrimestre, 3],
         )
-        .select_related('materia')
+        .select_related('materia__docente')
         .prefetch_related('bloques')
     )
 
@@ -162,7 +197,7 @@ def carrera_detail(request, pk):
         for bloque in h.bloques.all():
             entry = {
                 'materia': h.materia.nombre,
-                'docente': h.docente,
+                'docente': _nombre_docente(h.materia.docente),
                 'aula': bloque.aula,
                 'primer_dia': h.primer_dia_actividades,
                 'hora_inicio': bloque.hora_inicio,
@@ -216,6 +251,12 @@ def carrera_detail(request, pk):
         for dia in todos_los_dias
     ]
 
+    # Lista de primeros días de actividades, ordenada por fecha
+    primeros_dias = sorted(
+        [{'materia': h.materia.nombre, 'fecha': h.primer_dia_actividades} for h in horarios],
+        key=lambda x: x['fecha'],
+    )
+
     return render(request, 'horarios/carrera_detail.html', {
         'carrera': carrera,
         'ano': ano,
@@ -224,6 +265,7 @@ def carrera_detail(request, pk):
         'horarios_agrupados': horarios_agrupados,
         'time_labels': time_labels,
         'total_height': total_height,
+        'primeros_dias': primeros_dias,
     })
 
 
@@ -352,6 +394,7 @@ def horario_editar(request, materia_pk):
         'formset':           formset,
         'horario':           horario,
         'aulas_disponibles': Aula.objects.all(),
+        'aula_form':         AulaForm(),
     })
 
 
@@ -491,9 +534,10 @@ def materia_delete(request, pk):
 
 @manager_or_admin_required
 def asignacion_list(request):
-    asignaciones = MateriaAsignacion.objects.select_related(
-        'usuario', 'materia__carrera'
-    ).order_by('usuario__username', 'materia__carrera__nombre', 'materia__ano')
+    qs = MateriaAsignacion.objects.select_related('usuario', 'materia__carrera')
+    if not is_admin(request.user):
+        qs = qs.filter(usuario__perfil_editor__creado_por=request.user)
+    asignaciones = qs.order_by('usuario__username', 'materia__carrera__nombre', 'materia__ano')
     return render(request, 'horarios/admin_panel/asignacion/list.html', {
         'asignaciones': asignaciones
     })
@@ -501,7 +545,7 @@ def asignacion_list(request):
 
 @manager_or_admin_required
 def asignacion_create(request):
-    form = MateriaAsignacionForm(request.POST or None)
+    form = MateriaAsignacionForm(request.POST or None, manager=request.user)
     if form.is_valid():
         form.save()
         messages.success(request, 'Asignación creada.')
@@ -514,6 +558,10 @@ def asignacion_create(request):
 @manager_or_admin_required
 def asignacion_delete(request, pk):
     asignacion = get_object_or_404(MateriaAsignacion, pk=pk)
+    if not is_admin(request.user):
+        perfil = getattr(asignacion.usuario, 'perfil_editor', None)
+        if perfil is None or perfil.creado_por_id != request.user.pk:
+            return HttpResponseForbidden("Solo podés eliminar asignaciones de usuarios que vos creaste.")
     if request.method == 'POST':
         asignacion.delete()
         messages.success(request, 'Asignación eliminada.')
@@ -527,13 +575,12 @@ def asignacion_delete(request, pk):
 
 @manager_or_admin_required
 def usuario_list(request):
-    from django.contrib.auth.models import Group
-    editor_group = Group.objects.filter(name='editor').first()
     if is_admin(request.user):
         usuarios = User.objects.prefetch_related('groups').order_by('username')
     else:
+        # Managers solo ven los usuarios que ellos crearon
         usuarios = User.objects.filter(
-            groups=editor_group
+            perfil_editor__creado_por=request.user
         ).prefetch_related('groups').order_by('username')
     return render(request, 'horarios/admin_panel/usuario/list.html', {
         'usuarios': usuarios,
@@ -553,12 +600,27 @@ def _materias_por_carrera():
 
 
 def _guardar_asignaciones(usuario, materia_ids):
+    materia_ids = set(materia_ids)
+
+    # Materias que se van a quitar a este usuario
+    quitadas = set(
+        MateriaAsignacion.objects.filter(usuario=usuario)
+        .exclude(materia_id__in=materia_ids)
+        .values_list('materia_id', flat=True)
+    )
+
     MateriaAsignacion.objects.filter(usuario=usuario).delete()
+
     if materia_ids:
         MateriaAsignacion.objects.bulk_create([
             MateriaAsignacion(usuario=usuario, materia_id=mid)
             for mid in materia_ids
         ])
+        # Este usuario pasa a ser docente de las materias asignadas
+        Materia.objects.filter(id__in=materia_ids).update(docente=usuario)
+
+    # Si este usuario era docente de materias que se le quitaron, limpiar el campo
+    Materia.objects.filter(id__in=quitadas, docente=usuario).update(docente=None)
 
 
 @manager_or_admin_required
@@ -569,6 +631,7 @@ def usuario_create(request):
         user = form.save()
         materia_ids = [int(x) for x in request.POST.getlist('materias')]
         _guardar_asignaciones(user, materia_ids)
+        PerfilEditor.objects.create(usuario=user, creado_por=request.user)
         messages.success(request, f'Usuario "{user.username}" creado correctamente.')
         return redirect('usuario_list')
     return render(request, 'horarios/admin_panel/usuario/form.html', {
@@ -583,7 +646,11 @@ def usuario_create(request):
 def usuario_edit(request, pk):
     usuario = get_object_or_404(User, pk=pk)
     if not is_admin(request.user) and is_admin(usuario):
-        return HttpResponseForbidden("No podés editar un administrador.")
+        return HttpResponseForbidden("No tenés permisos para editar un administrador.")
+    if not is_admin(request.user):
+        perfil = getattr(usuario, 'perfil_editor', None)
+        if perfil is None or perfil.creado_por_id != request.user.pk:
+            return HttpResponseForbidden("Solo podés editar usuarios que vos creaste.")
     creator_is_admin = is_admin(request.user)
     form = UsuarioEditarForm(request.POST or None, instance=usuario, creator_is_admin=creator_is_admin)
     if form.is_valid():
@@ -612,7 +679,11 @@ def usuario_edit(request, pk):
 def usuario_delete(request, pk):
     usuario = get_object_or_404(User, pk=pk)
     if not is_admin(request.user) and is_admin(usuario):
-        return HttpResponseForbidden("No podés eliminar un administrador.")
+        return HttpResponseForbidden("No tenés permisos para eliminar un administrador.")
+    if not is_admin(request.user):
+        perfil = getattr(usuario, 'perfil_editor', None)
+        if perfil is None or perfil.creado_por_id != request.user.pk:
+            return HttpResponseForbidden("Solo podés eliminar usuarios que vos creaste.")
     if request.method == 'POST':
         usuario.delete()
         messages.success(request, 'Usuario eliminado.')
@@ -637,7 +708,7 @@ def _datos_aulas():
     bloques = (
         HorarioBloque.objects
         .exclude(aula__isnull=True)
-        .select_related('aula', 'horario__materia__carrera')
+        .select_related('aula', 'horario__materia__carrera', 'horario__materia__docente')
         .order_by('aula__ubicacion', 'aula__planta', 'aula__nombre', 'dia_semana', 'hora_inicio')
     )
     aulas_dict = defaultdict(lambda: {'aula_str': '', 'horas_semanales': 0.0, 'bloques': []})
@@ -653,7 +724,7 @@ def _datos_aulas():
             'hora_fin':    b.hora_fin,
             'materia':     b.horario.materia.nombre,
             'carrera':     b.horario.materia.carrera.nombre,
-            'docente':     b.horario.docente,
+            'docente':     _nombre_docente(b.horario.materia.docente),
         })
     return [
         {'aula': d['aula_str'], 'horas_semanales': d['horas_semanales'], 'bloques': d['bloques']}
@@ -677,6 +748,11 @@ def _datos_conflictos():
     for (aula_id, dia), blist in por_aula_dia.items():
         for i, a in enumerate(blist):
             for b in blist[i + 1:]:
+                # Ignorar superposición si ambas materias tienen el mismo docente
+                doc_a = a.horario.materia.docente_id
+                doc_b = b.horario.materia.docente_id
+                if doc_a and doc_b and doc_a == doc_b:
+                    continue
                 if a.hora_inicio < b.hora_fin and a.hora_fin > b.hora_inicio:
                     conflictos.append({
                         'aula':     str(a.aula),

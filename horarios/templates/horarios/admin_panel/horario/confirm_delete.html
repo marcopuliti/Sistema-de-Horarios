@@ -21,7 +21,7 @@
       <span class="text-muted small">
         {{ materia.carrera.nombre }} · {{ materia.ano }}° año · {{ materia.get_cuatrimestre_display }}
       </span><br><br>
-      {% if horario.docente %}Docente: {{ horario.docente }}<br>{% endif %}
+      {% if materia.docente %}Docente: {{ materia.docente.get_full_name|default:materia.docente }}<br>{% endif %}
       {% if horario.aula %}Aula: {{ horario.aula }}<br>{% endif %}
       {% if horario.bloques.count %}
         {{ horario.bloques.count }} bloque{{ horario.bloques.count|pluralize }} de horario
