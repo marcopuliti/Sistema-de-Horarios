@@ -1,3 +1,4 @@
 1- Buscador que no distinga acentos.
 2- Sistema de notificaciones por email.
-3- 
+3- Agregar capacidad de aulas
+4- 
