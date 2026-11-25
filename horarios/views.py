@@ -816,7 +816,10 @@ def aula_panel_delete(request, pk):
 
 @manager_or_admin_required
 def reporte_index(request):
-    return render(request, 'horarios/reportes/index.html')
+    return render(request, 'horarios/reportes/index.html', {
+        'is_admin_user': is_admin(request.user),
+        'carreras': Carrera.objects.all(),
+    })
 
 
 @manager_or_admin_required
@@ -969,4 +972,125 @@ def reporte_conflictos_pdf(request):
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="conflictos_horario.pdf"'
     pisa.CreatePDF(html, dest=response)
+    return response
+
+
+# ─── Exportación de horarios por carrera (solo admin) ────────────────────────
+
+_XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+_HORARIOS_COLUMNAS = [
+    ('Cuatrimestre', 16), ('Materia', 45), ('Código', 12), ('Docente', 28),
+    ('Día', 12), ('Hora inicio', 12), ('Hora fin', 12), ('Aula', 38),
+    ('Primer día de actividades', 24),
+]
+
+
+def _bloques_horarios(carreras_ids):
+    """Bloques horarios de las carreras dadas, con todo lo necesario para exportar."""
+    return (
+        HorarioBloque.objects
+        .filter(horario__materia__carrera_id__in=carreras_ids)
+        .select_related('aula', 'horario__materia__docente')
+    )
+
+
+def _workbook_horarios_carrera(carrera, bloques):
+    """Arma un Excel con una hoja por año de la carrera y los bloques cargados en cada una."""
+    import openpyxl
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    header_font = Font(bold=True, color='FFFFFF')
+    header_fill = PatternFill('solid', fgColor='343A40')
+
+    por_ano = {}
+    for b in bloques:
+        por_ano.setdefault(b.horario.materia.ano, []).append(b)
+
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active)
+
+    for ano in range(1, carrera.duracion_anos + 1):
+        ws = wb.create_sheet(title=f'{ano}° Año')
+        ws.append([titulo for titulo, _ in _HORARIOS_COLUMNAS])
+        for col, (_, ancho) in enumerate(_HORARIOS_COLUMNAS, start=1):
+            celda = ws.cell(row=1, column=col)
+            celda.font = header_font
+            celda.fill = header_fill
+            celda.alignment = Alignment(vertical='center')
+            ws.column_dimensions[get_column_letter(col)].width = ancho
+        ws.freeze_panes = 'A2'
+
+        filas = sorted(
+            por_ano.get(ano, []),
+            key=lambda b: (
+                b.horario.materia.cuatrimestre,
+                b.horario.materia.nombre,
+                DIA_ORDER.get(b.dia_semana, 99),
+                b.hora_inicio,
+            ),
+        )
+        if not filas:
+            ws.append(['Sin horarios cargados para este año.'])
+            ws.cell(row=2, column=1).font = Font(italic=True, color='6C757D')
+            continue
+
+        for b in filas:
+            m = b.horario.materia
+            ws.append([
+                m.get_cuatrimestre_display(),
+                m.nombre,
+                m.codigo or '—',
+                _nombre_docente(m.docente) or '—',
+                b.get_dia_semana_display(),
+                b.hora_inicio.strftime('%H:%M'),
+                b.hora_fin.strftime('%H:%M'),
+                str(b.aula) if b.aula else '—',
+                b.horario.primer_dia_actividades,
+            ])
+            ws.cell(row=ws.max_row, column=len(_HORARIOS_COLUMNAS)).number_format = 'DD/MM/YYYY'
+        ws.auto_filter.ref = ws.dimensions
+
+    return wb
+
+
+def _nombre_archivo_carrera(carrera):
+    from django.utils.text import slugify
+    return f"horarios_{carrera.codigo}_{slugify(carrera.nombre)}.xlsx"
+
+
+@admin_required
+def reporte_horarios_carrera_excel(request, pk):
+    from django.http import HttpResponse
+    carrera = get_object_or_404(Carrera, pk=pk)
+    wb = _workbook_horarios_carrera(carrera, _bloques_horarios([carrera.pk]))
+    response = HttpResponse(content_type=_XLSX_CONTENT_TYPE)
+    response['Content-Disposition'] = f'attachment; filename="{_nombre_archivo_carrera(carrera)}"'
+    wb.save(response)
+    return response
+
+
+@admin_required
+def reporte_horarios_todas_zip(request):
+    """ZIP con un Excel por carrera (una hoja por año)."""
+    import io
+    import zipfile
+    from django.http import HttpResponse
+
+    carreras = list(Carrera.objects.all())
+    bloques_por_carrera = {}
+    for b in _bloques_horarios([c.pk for c in carreras]):
+        bloques_por_carrera.setdefault(b.horario.materia.carrera_id, []).append(b)
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for carrera in carreras:
+            wb = _workbook_horarios_carrera(carrera, bloques_por_carrera.get(carrera.pk, []))
+            xlsx = io.BytesIO()
+            wb.save(xlsx)
+            zf.writestr(_nombre_archivo_carrera(carrera), xlsx.getvalue())
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/zip')
+    response['Content-Disposition'] = 'attachment; filename="horarios_por_carrera.zip"'
     return response

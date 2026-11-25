@@ -31,7 +31,9 @@ python manage.py migrate              # also creates groups + seeds careers (dat
 python manage.py createsuperuser
 python manage.py runserver
 python manage.py makemigrations horarios
-python manage.py test horarios        # NOTE: horarios/tests.py is an empty stub — there are no tests yet
+# Tests: override DATABASE_URL with SQLite so they never touch the DB in .env
+# (env vars take precedence over .env in python-decouple)
+DATABASE_URL=sqlite:///<scratch-dir>/test.db python manage.py test horarios
 python manage.py collectstatic        # → staticfiles/ (served by whitenoise)
 
 # Data commands (horarios/management/commands/)
@@ -124,7 +126,9 @@ and **also sets `Materia.docente`** to that user for the assigned materias, clea
 - `aula_detail` merges blocks with the same day, time and materia name (the same course
   listed under several careers) into one entry.
 - Reports have three variants each (HTML, `/excel/`, `/pdf/`) built from a shared `_datos_*()`
-  helper. `_datos_conflictos` flags overlapping blocks in the same aula and day, **except** when both
+  helper. Admin-only exports also live here: `reporte_horarios_carrera_excel` (one .xlsx per
+  career, one sheet per year) and `reporte_horarios_todas_zip` (a ZIP of all of them), both
+  built by `_workbook_horarios_carrera`. `_datos_conflictos` flags overlapping blocks in the same aula and day, **except** when both
   materias have the same `docente` (treated as a shared or merged class).
 - Heavy imports (`openpyxl`, `xhtml2pdf`) happen inside the export view functions.
 - `horarios/admin.py` also registers everything in the Django admin (`/admin/`).

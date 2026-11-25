@@ -58,4 +58,8 @@ urlpatterns = [
     path('panel/reportes/conflictos/', views.reporte_conflictos, name='reporte_conflictos'),
     path('panel/reportes/conflictos/excel/', views.reporte_conflictos_excel, name='reporte_conflictos_excel'),
     path('panel/reportes/conflictos/pdf/', views.reporte_conflictos_pdf, name='reporte_conflictos_pdf'),
+
+    # Exportación de horarios por carrera (solo admin)
+    path('panel/reportes/horarios/zip/', views.reporte_horarios_todas_zip, name='reporte_horarios_todas_zip'),
+    path('panel/reportes/horarios/carrera/<int:pk>/excel/', views.reporte_horarios_carrera_excel, name='reporte_horarios_carrera_excel'),
 ]

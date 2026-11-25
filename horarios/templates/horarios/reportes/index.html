@@ -73,5 +73,35 @@
       </div>
     </div>
   </div>
+
+  {% if is_admin_user %}
+  <div class="col-md-8">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h5 class="card-title"><i class="bi bi-calendar-week text-success"></i> Horarios por carrera</h5>
+        <p class="card-text text-muted small">
+          Un archivo Excel por carrera, con una hoja por año y todos los horarios cargados
+          (materia, docente, día, horario y aula).
+        </p>
+        <form class="d-flex gap-2" onsubmit="event.preventDefault(); if (this.carrera.value) window.location = this.carrera.value;">
+          <select name="carrera" class="form-select form-select-sm" required>
+            <option value="">— Seleccionar carrera —</option>
+            {% for c in carreras %}
+              <option value="{% url 'reporte_horarios_carrera_excel' c.pk %}">{{ c.codigo }} – {{ c.nombre }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-outline-success btn-sm text-nowrap">
+            <i class="bi bi-file-earmark-excel"></i> Excel
+          </button>
+        </form>
+      </div>
+      <div class="card-footer bg-transparent">
+        <a href="{% url 'reporte_horarios_todas_zip' %}" class="btn btn-success btn-sm w-100">
+          <i class="bi bi-file-earmark-zip"></i> Descargar todas las carreras (ZIP)
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
