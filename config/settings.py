@@ -44,6 +44,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'horarios.middleware.ForzarCambioPasswordMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 

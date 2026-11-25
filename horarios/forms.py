@@ -1,5 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.models import User
 from .models import Carrera, Materia, Horario, HorarioBloque, MateriaAsignacion, Aula
 
@@ -208,6 +209,14 @@ class UsuarioEditarForm(forms.ModelForm):
             from django.contrib.auth.models import Group
             user.groups.set([Group.objects.get(name=self.cleaned_data['rol'])])
         return user
+
+
+class CambiarPasswordForm(PasswordChangeForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.update(BS_INPUT)
+        self.fields['old_password'].widget.attrs.pop('autofocus', None)
 
 
 class HorarioFiltroForm(forms.Form):

@@ -44,6 +44,12 @@
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
               <li>
+                <a class="dropdown-item" href="{% url 'password_change' %}">
+                  <i class="bi bi-key"></i> Cambiar contraseña
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              <li>
                 <form method="post" action="{% url 'logout' %}">
                   {% csrf_token %}
                   <button type="submit" class="dropdown-item text-danger">

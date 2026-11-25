@@ -41,7 +41,23 @@ python manage.py actualizar_carreras              # upsert careers by código, d
 python manage.py importar_materias                # scrape planesestudio.unsl.edu.ar for all careers
 python manage.py importar_materias --carrera 03062
 python manage.py importar_materias --limpiar      # DELETE existing materias first (cascades to horarios!)
+python manage.py plantilla_docentes plantilla_docentes.xlsx  # template listing every materia (read-only)
+python manage.py importar_docentes docentes.xlsx --dry-run   # preview; always run this first
+python manage.py importar_docentes docentes.xlsx [--hoja H] [--creado-por USER]
 ```
+
+`importar_docentes` reads an Excel with the columns Carrera / Materia / Docente / Correo
+(the header row is found automatically, and matching ignores case and accents). It also reads
+the optional columns `ID materia`, an exact match emitted by `plantilla_docentes`, and `Año`,
+which separates materias that share a name such as "Optativa". Rows with no docente and no
+correo are skipped. `*.xlsx` is gitignored because these sheets hold personal emails. It creates
+`editor` accounts with username = email = initial password, adds `MateriaAsignacion` rows and
+sets `Materia.docente`. Existing accounts keep their password. Rows it cannot match are
+reported and skipped.
+
+Forced password change: the `user_logged_in` receiver in `horarios/middleware.py` sets a session
+flag when the password equals the email. While that flag is set, `ForzarCambioPasswordMiddleware`
+sends every request to `password_change` (`/accounts/password/`, `CambiarPasswordView`).
 
 `importar_materias` makes live HTTP requests (0.5 s pause between careers) and uses
 `get_or_create` keyed on `(carrera, codigo)`, so re-running it does not update existing rows.

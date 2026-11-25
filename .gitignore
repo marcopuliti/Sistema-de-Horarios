@@ -7,3 +7,6 @@ db.sqlite3
 *.log
 .DS_Store
 staticfiles/
+
+# Planillas con datos de docentes (correos)
+*.xlsx

@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.contrib import messages
+from django.contrib.auth.views import PasswordChangeView
 from django.http import HttpResponseForbidden, JsonResponse
 from django.contrib.auth.models import User
 from django.db.models import Count, Prefetch
@@ -8,8 +9,9 @@ from .models import Carrera, Materia, Horario, HorarioBloque, MateriaAsignacion,
 from .forms import (
     CarreraForm, MateriaForm, HorarioForm, HorarioBloqueFormSet, AulaForm,
     MateriaAsignacionForm, HorarioFiltroForm,
-    UsuarioCrearForm, UsuarioEditarForm,
+    UsuarioCrearForm, UsuarioEditarForm, CambiarPasswordForm,
 )
+from .middleware import SESSION_DEBE_CAMBIAR_PASSWORD
 from .decorators import (
     admin_required, editor_or_admin_required, manager_or_admin_required,
     is_admin, is_manager_or_admin,
@@ -23,6 +25,30 @@ def _nombre_docente(user):
     if user is None:
         return ''
     return user.get_full_name() or user.username
+
+
+# ─── Cuenta propia ────────────────────────────────────────────────────────────
+
+class CambiarPasswordView(PasswordChangeView):
+    form_class = CambiarPasswordForm
+    template_name = 'horarios/password_change.html'
+    success_url = reverse_lazy('home')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['forzado'] = bool(self.request.session.get(SESSION_DEBE_CAMBIAR_PASSWORD))
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        self.request.session.pop(SESSION_DEBE_CAMBIAR_PASSWORD, None)
+        messages.success(self.request, 'Contraseña actualizada correctamente.')
+        return response
+
+    def get_success_url(self):
+        if self.request.user.is_superuser or self.request.user.groups.exists():
+            return reverse('panel_dashboard')
+        return super().get_success_url()
 
 
 # ─── Vistas públicas ──────────────────────────────────────────────────────────
